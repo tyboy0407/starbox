@@ -1,0 +1,13 @@
+{
+  "name": "星星小宇宙",
+  "short_name": "星星小宇宙",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#070720",
+  "theme_color": "#070720",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
