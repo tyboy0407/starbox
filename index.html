@@ -172,7 +172,6 @@ h2,h3,h4,p{margin:0}
 .face.back{background:linear-gradient(140deg,#3a2a85,#6b3fa0);border:1px solid rgba(255,217,138,.4);color:var(--gold);font-size:22px;
   box-shadow:inset 0 0 14px rgba(255,255,255,.08)}
 .face.front{background:linear-gradient(160deg,#fbf7ff,#e9defd);transform:rotateY(180deg);font-size:clamp(26px,9vw,36px)}
-.face.front img{width:100%;height:100%;object-fit:cover}
 .mcard.matched .face.front{box-shadow:0 0 0 2px var(--gold),0 0 18px rgba(255,217,138,.75)}
 .mcard.matched{animation:pop .4s}
 
@@ -823,18 +822,14 @@ function startWhack(body, stat) {
 }
 
 /* ---------- 星座翻牌（翻牌配對） ---------- */
-const isImg = s => /\.(png|jpe?g|webp|gif|heic)$/i.test(String(s));
 function startMemory(body, stat) {
   const cfg = Object.assign({ symbols: ['🌙', '⭐', '🪐', '☄️', '🌸', '💜', '🐰', '🍓'], maxPoints: 40, minPoints: 10, penaltyPerExtraMove: 2 }, cfgOf('memory'));
   const syms = cfg.symbols.slice(0, 8);
-  // 照片載入失敗（還沒放進 photos 資料夾）時，用對應位置的表情符號代替，遊戲照樣能玩
-  const fallback = ['🌙', '⭐', '🪐', '☄️', '🌸', '💜', '🐰', '🍓'];
-  const fb = s => fallback[syms.indexOf(s)] || '✦';
   const deck = shuffle([...syms, ...syms]);
   let first = null, lock = false, moves = 0, matched = 0, t0 = 0, iv = null;
   const setStat = () => { const sec = t0 ? Math.floor((Date.now() - t0) / 1000) : 0; stat.textContent = `${moves}步 ⏱${sec}`; };
   body.innerHTML = `<p class="game-hint">翻開兩張一樣的就配對成功<br>${syms.length} 步完美通關，步數越少${PN}越多</p>
-    <div class="mgrid">${deck.map((s, i) => `<button class="mcard" data-i="${i}"><div class="inner"><div class="face back">✦</div><div class="face front">${isImg(s) ? `<img src="${esc(s)}" alt="" onerror="this.outerHTML='${fb(s)}'">` : esc(s)}</div></div></button>`).join('')}</div>`;
+    <div class="mgrid">${deck.map((s, i) => `<button class="mcard" data-i="${i}"><div class="inner"><div class="face back">✦</div><div class="face front">${esc(s)}</div></div></button>`).join('')}</div>`;
   setStat();
   const cards = $$('.mcard', body);
   cards.forEach(el => el.addEventListener('click', () => {

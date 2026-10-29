@@ -9,7 +9,6 @@
 | `index.html` | App 本體，不用動 |
 | `config.js` | **所有內容都在這裡改**：名字、輪盤獎賞、兌換品、題目、ntfy |
 | `manifest.webmanifest`、`icon-*.png` | 主畫面圖示 |
-| `photos/`（自己建，選用） | 翻牌遊戲想換成合照時放這裡 |
 
 ---
 
@@ -39,7 +38,7 @@
 - `games.quiz.questions`：**範例題目一定要換成你們的**，`answer` 是正確選項的位置（從 0 開始數）
 - `adminCode`：管理模式密碼
 
-想把翻牌換成合照：建一個 `photos` 資料夾放 8 張照片，`symbols` 改成 `["photos/1.jpg", "photos/2.jpg", ...]`（正方形照片最好看）。
+> 翻牌遊戲刻意只用表情符號、不放合照：這是公開 repo，放上去的照片任何人都看得到。
 
 ## 步驟 3：放上 GitHub Pages
 

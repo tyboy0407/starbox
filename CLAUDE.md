@@ -25,7 +25,6 @@ manifest.webmanifest  PWA manifest
 icon-180/192/512.png  主畫面圖示（tools/make_icons.py 產生）
 README.md             給使用者看的部署與設定教學（繁中）
 assets/thief.png      偷星怪客的去背圖（config.thief.image）
-photos/               翻牌遊戲的合照 1.jpg～8.jpg（使用者自行放入）
 tools/make_icons.py   用 Pillow 產生圖示：python3 tools/make_icons.py .
 tools/e2e_test.py     Playwright 端對端測試，iPhone 尺寸跑完整流程並截圖
 ```
@@ -94,7 +93,7 @@ python3 tools/e2e_test.py              # 截圖輸出到 tools/screenshots/
 
 v1 已完成，所有功能都用 e2e 測試驗證過。使用者接下來可能會：
 - 把 config.js 裡的範例內容（名字、生日、題目、獎賞）換成真的
-- 把翻牌圖案換成合照（放在 `photos/`，`symbols` 改成檔案路徑；程式已經支援圖片）
+- （已決定**不做**翻牌合照：使用者擔心公開 repo 外洩，圖片支援的程式碼已移除。若未來要做，照片必須只存在她手機或加密後上傳，不能直接放 repo）
 - 追加新功能或新遊戲
 
 上面這些都是使用者還沒決定的事，請依照他實際的要求來做。

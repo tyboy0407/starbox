@@ -117,10 +117,8 @@ window.APP_CONFIG = {
     // 星座翻牌（翻牌配對）
     memory: {
       enabled: true,
-      // 8 種圖案。目前設定成合照：把 8 張照片放進 photos 資料夾，檔名 1.jpg ～ 8.jpg（正方形最好看）
-      // 照片還沒放上去的話，翻牌會先用表情符號代替；想永久改回表情符號就換成下面這行：
-      // symbols: ["🌙", "⭐", "🪐", "☄️", "🌸", "💜", "🐰", "🍓"],
-      symbols: ["photos/1.jpg", "photos/2.jpg", "photos/3.jpg", "photos/4.jpg", "photos/5.jpg", "photos/6.jpg", "photos/7.jpg", "photos/8.jpg"],
+      // 8 種圖案（表情符號），可以換成你們喜歡的
+      symbols: ["🌙", "⭐", "🪐", "☄️", "🌸", "💜", "🐰", "🍓"],
       maxPoints: 40,               // 完美通關（8 步）拿到的星星
       minPoints: 10,               // 最少保底
       penaltyPerExtraMove: 2,      // 每多一步扣幾顆

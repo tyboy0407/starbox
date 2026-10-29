@@ -27,7 +27,7 @@ async def main():
       path=route.request.url.split('localtest/')[1].split('?')[0] or 'index.html'
       if path=='config.js': return await route.fulfill(body=cfg,content_type='application/javascript')
       ct={'html':'text/html','png':'image/png','jpg':'image/jpeg','webmanifest':'application/manifest+json'}.get(path.rsplit('.',1)[-1],'text/plain')
-      if not os.path.isfile(f'{APP}/{path}'): return await route.fulfill(status=404,body='')   # 例如還沒放的 photos/*.jpg
+      if not os.path.isfile(f'{APP}/{path}'): return await route.fulfill(status=404,body='')   # 缺檔回 404 而不是當掉
       await route.fulfill(body=open(f'{APP}/{path}','rb').read(),content_type=ct)
     await pg.route('http://localtest/**',files)
     await pg.route(re.compile(r'https://fonts\..*'),lambda r: r.fulfill(body='',content_type='text/css'))
@@ -66,7 +66,7 @@ async def main():
     await pg.screenshot(path=f'{OUT}/8-whack-end.png')
     await pg.click('.modal-bg .btn'); await pg.wait_for_timeout(400)
     # memory: solve perfectly
-    await pg.click('[data-game=memory]'); await pg.wait_for_timeout(800)   # 等照片載入失敗換成表情符號
+    await pg.click('[data-game=memory]'); await pg.wait_for_timeout(300)
     syms=await pg.eval_on_selector_all('.mcard .front','els=>els.map(e=>e.textContent)')
     pairs={}
     for i,s in enumerate(syms): pairs.setdefault(s,[]).append(i)
