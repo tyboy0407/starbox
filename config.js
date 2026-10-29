@@ -73,14 +73,14 @@ window.APP_CONFIG = {
    * 建議 6～10 格 */
   wheel: {
     prizes: [
-      { label: "抱抱一分鐘", emoji: "🤗", weight: 3 },
-      { label: "+20 星星",   emoji: "⭐", points: 20, weight: 3 },
-      { label: "按摩15分鐘", emoji: "💆", weight: 2 },
-      { label: "手搖飲一杯", emoji: "🧋", weight: 2 },
-      { label: "+50 星星",   emoji: "🌟", points: 50, weight: 1 },
-      { label: "親親一下",   emoji: "😘", weight: 3 },
-      { label: "甜點一份",   emoji: "🍰", weight: 2 },
-      { label: "今天你最大", emoji: "👑", weight: 1 },
+      { label: "+20 星星",         emoji: "⭐", points: 20, weight: 3 },
+      { label: "+10 星星",         emoji: "✨", points: 10, weight: 3 },
+      { label: "可以許願吃小點心", emoji: "🍪", weight: 3 },
+      { label: "手搖飲一杯",       emoji: "🧋", weight: 2 },
+      { label: "按摩15分鐘",       emoji: "💆", weight: 2 },
+      { label: "甜點一份",         emoji: "🍰", weight: 2 },
+      { label: "神秘小禮物",       emoji: "🎁", weight: 1 },
+      { label: "今天你最大",       emoji: "👑", weight: 1 },
     ],
     // 輪盤格子顏色（會依序輪流使用）
     colors: ["#3b2a8c", "#5b2f9e", "#22357f", "#7a3a9c"],
