@@ -92,14 +92,15 @@ window.APP_CONFIG = {
    * limit：最多能兌換幾次（不填就是無限）
    * 兌換後會變成「兌換券」，她拿給你兌現 */
   shop: [
-    { id: "drink",   name: "手搖飲一杯",       emoji: "🧋", cost: 60,  desc: "任選一家，我去買" },
-    { id: "dessert", name: "甜點任選",         emoji: "🍰", cost: 80,  desc: "蛋糕、冰淇淋都可以" },
-    { id: "massage", name: "全身按摩 30 分鐘",  emoji: "💆", cost: 120, desc: "專業級（自稱）" },
-    { id: "chores",  name: "家事全包一天",      emoji: "🧹", cost: 150, desc: "你只要負責躺著" },
-    { id: "movie",   name: "電影約會",         emoji: "🎬", cost: 200, desc: "電影票、爆米花我請" },
-    { id: "dinner",  name: "大餐一頓",         emoji: "🍜", cost: 250, desc: "想吃什麼都帶你去" },
-    { id: "mystery", name: "神秘禮物",         emoji: "🎁", cost: 400, desc: "猜猜是什麼？", limit: 1 },
-    { id: "wish",    name: "萬能願望券",        emoji: "👑", cost: 500, desc: "任何要求都答應（合理範圍內 😆）", limit: 1 },
+    { id: "drink",   name: "手搖飲一杯",      emoji: "🧋", cost: 60,   desc: "任選一家，我去買" },
+    { id: "snack",   name: "零食補給包",      emoji: "🍪", cost: 50,   desc: "便利商店隨便抓三樣" },
+    { id: "dessert", name: "甜點任選",        emoji: "🍰", cost: 120,  desc: "蛋糕、冰淇淋、鬆餅都可以" },
+    { id: "massage", name: "全身按摩 30 分鐘", emoji: "💆", cost: 150,  desc: "專業級" },
+    { id: "movie",   name: "電影約會",        emoji: "🎬", cost: 300,  desc: "當然是我請客啦" },
+    { id: "photo",   name: "約會攝影日",      emoji: "📸", cost: 350,  desc: "出門拍一整天美照，我當攝影師兼提包" },
+    { id: "trip",    name: "一日小旅行",      emoji: "🚗", cost: 800,  desc: "地點你選，行程我排", limit: 1 },
+    { id: "mystery", name: "神秘禮物",        emoji: "🎁", cost: 1000, desc: "猜猜是什麼？", limit: 1 },
+    { id: "wish",    name: "萬能願望券",      emoji: "👑", cost: 2000, desc: "任何要求都答應（合理範圍內 😆）", limit: 1 },
   ],
 
   /* ---------- 小遊戲 ---------- */
