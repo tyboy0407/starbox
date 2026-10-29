@@ -80,6 +80,11 @@ h2,h3,h4,p{margin:0}
 .m-icon.thief{animation:thiefShake .7s ease-in-out infinite;filter:drop-shadow(0 0 16px rgba(255,138,166,.6))}
 @keyframes thiefShake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-6px) rotate(-8deg)}40%{transform:translateX(5px) rotate(6deg)}60%{transform:translateX(-4px) rotate(-4deg)}80%{transform:translateX(4px) rotate(4deg)}}
 .sheet .opt{font-size:16px;padding:12px 14px;margin:8px 0;text-align:center}
+.m-icon img.thief-img{width:170px;max-width:60vw;height:auto;display:block;margin:0 auto 4px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.45))}
+.m-icon.away{animation:thiefAway .65s ease-in forwards}
+@keyframes thiefAway{to{transform:translateX(220px) rotate(25deg);opacity:0}}
+.m-icon.win{animation:thiefWin .45s ease-out 2}
+@keyframes thiefWin{50%{transform:translateY(-12px) scale(1.08)}}
 .hello{font-size:24px;font-weight:700}
 .sub{color:var(--muted);margin-top:4px;font-size:14px}
 .bday{text-align:center;background:linear-gradient(135deg,rgba(255,158,207,.14),rgba(180,140,255,.14))}
@@ -897,7 +902,7 @@ function startQuiz(body, stat) {
 }
 
 /* ================= 偷星怪客 ================= */
-const thiefCfg = () => Object.assign({ enabled: true, chance: 0.3, steal: 15, maxPerDay: 1, minPoints: 10, name: '偷星怪客', emoji: '👾', questions: [] }, C.thief || {});
+const thiefCfg = () => Object.assign({ enabled: true, chance: 0.3, steal: 15, maxPerDay: 1, minPoints: 10, name: '偷星怪客', emoji: '👾', image: '', questions: [] }, C.thief || {});
 function thiefPool() {
   const own = thiefCfg().questions || [], quiz = cfgOf('quiz').questions || [];
   return (own.length ? own : quiz).filter(q => q && q.q && Array.isArray(q.options) && q.options.length > 1);
@@ -919,7 +924,8 @@ async function thiefAttack(q) {
   const steal = Math.min(S.points, Math.max(0, +t.steal || 0));
   const opts = shuffle(q.options.map((txt, j) => ({ txt, ok: j === q.answer })));
   await modal({
-    icon: esc(t.emoji), title: `${esc(t.name)}出現了！`, dismiss: false,
+    icon: t.image ? `<img class="thief-img" src="${esc(t.image)}" alt="${esc(t.name)}" onerror="this.outerHTML='${esc(t.emoji)}'">` : esc(t.emoji),
+    title: `${esc(t.name)}出現了！`, dismiss: false,
     html: `<p>牠想偷走你 <b class="gold">${PE} ${steal} 顆${PN}</b>！<br>答對問題就能把牠趕走</p>
       <div class="qtext">${esc(q.q)}</div>
       ${opts.map((o, j) => `<button class="opt" data-j="${j}">${esc(o.txt)}</button>`).join('')}
@@ -934,17 +940,18 @@ async function thiefAttack(q) {
         if (answered) return; answered = true;
         const o = opts[+b.dataset.j];
         btns.forEach((x, k) => { x.disabled = true; if (opts[k].ok) x.classList.add('right'); });
-        $('.m-icon', bg).classList.remove('thief');
+        const ic = $('.m-icon', bg); ic.classList.remove('thief');
         if (o.ok) {
           note.innerHTML = `<b class="ok">答對了！</b> ${q.note ? esc(q.note) : ''}<br>${esc(t.name)}被你趕跑了 ✨`;
-          $('.m-icon', bg).textContent = '💨';
+          if (t.image) { ic.classList.add('away'); setTimeout(() => { ic.textContent = '💨'; ic.classList.remove('away'); }, 650); }
+          else ic.textContent = '💨';
           log(t.emoji, `趕走了${t.name}，${PN}保住了`); save();
           sparkle(innerWidth / 2, innerHeight * .3, 110);
           $('.btn', okBtn).textContent = '太好了 ✨';
         } else {
           b.classList.add('wrong');
           note.innerHTML = `<b class="ng">答錯了…</b> ${esc(t.name)}偷走了 ${PE} ${steal} 顆${PN}`;
-          $('.m-icon', bg).textContent = '😈';
+          if (t.image) ic.classList.add('win'); else ic.textContent = '😈';
           addPoints(-steal, t.emoji, `${t.name}偷走了 ${steal} 顆${PN}`);
           $('.btn', okBtn).textContent = '可惡 😤';
         }

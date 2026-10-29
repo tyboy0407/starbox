@@ -24,6 +24,8 @@ config.js             所有可自訂的內容（window.APP_CONFIG），給非�
 manifest.webmanifest  PWA manifest
 icon-180/192/512.png  主畫面圖示（tools/make_icons.py 產生）
 README.md             給使用者看的部署與設定教學（繁中）
+assets/thief.png      偷星怪客的去背圖（config.thief.image）
+photos/               翻牌遊戲的合照 1.jpg～8.jpg（使用者自行放入）
 tools/make_icons.py   用 Pillow 產生圖示：python3 tools/make_icons.py .
 tools/e2e_test.py     Playwright 端對端測試，iPhone 尺寸跑完整流程並截圖
 ```
@@ -54,7 +56,7 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
 - **頁面**：`render.home / wheel / games / shop / wish`，由 `go(page)` 切換。大多是整頁用 innerHTML 重繪。輪盤頁例外：只建一次（`wheelBuilt`），之後只呼叫 `updateWheel()`，這樣 canvas 的旋轉角度才不會被重設。
 - **輪盤**：用 canvas 畫，扇形從 12 點鐘方向開始順時針排列；轉動是對 canvas 加 CSS `rotate`。第 `idx` 格停在指針下方的角度是 `360 - (idx+0.5)*seg`。**結果在動畫開始前就先寫入 state**，避免她轉到一半關掉 App 就能重轉。
 - **遊戲**：都註冊在 `GAMES`（`name / emoji / desc / start(body, stat) / max()`）。共用的機制是 `openGame / closeGame / finishGame` 和 `game.{playing, cleanup}`。遊戲途中離開不扣次數，也不給點數，**只有在 `finishGame` 才會 `addPlay`**。要新增遊戲就照同樣的介面加進 `GAMES`，並在 `config.games` 加上對應的設定區塊。
-- **偷星怪客**：`maybeThief()` 在啟動（非首次）和 `visibilitychange` 回前景時依 `config.thief.chance` 擲骰，受 `maxPerDay`、`minPoints` 限制，遊戲中或已有彈窗時不出現。`thiefAttack(q)` 用 `modal({onOpen})` 顯示一題（題庫預設共用 `games.quiz.questions`，`thief.questions` 可覆蓋），答對只記錄、答錯 `addPoints(-steal)`。
+- **偷星怪客**：`maybeThief()` 在啟動（非首次）和 `visibilitychange` 回前景時依 `config.thief.chance` 擲骰，受 `maxPerDay`、`minPoints` 限制，遊戲中或已有彈窗時不出現。`thiefAttack(q)` 用 `modal({onOpen})` 顯示一題（有 `thief.image` 時圖示用 `<img>`，答對滑走、答錯彈跳）（題庫預設共用 `games.quiz.questions`，`thief.questions` 可覆蓋），答對只記錄、答錯 `addPoints(-steal)`。
 - **首頁訊息模板**：`fillTpl()` 會把 `{第幾天}`、`{生日倒數}`、`{名字}` 換成實際值；生日當月且有 `config.birthMonthMessage` 時，「給你的話」卡片改顯示它。
 - **管理模式**：在首頁連點月亮 5 下，輸入 `config.adminCode`。可以加減星星、重置今日次數（含怪客）、測試通知、召喚偷星怪客、清除資料。
 - **特效**：背景星空用 `#sky` canvas，持續播放，分頁隱藏時暫停；慶祝特效 `sparkle()` 畫在 `#fx` canvas 上。

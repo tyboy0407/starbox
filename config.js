@@ -59,7 +59,8 @@ window.APP_CONFIG = {
     maxPerDay: 1,                  // 一天最多出現幾次
     minPoints: 10,                 // 星星少於這個數字就不會出現（沒東西好偷）
     name: "偷星怪客",
-    emoji: "👾",
+    image: "assets/thief.png",     // 怪客的圖片（去背 PNG，放在 assets 資料夾）；留空 "" 就改用下面的 emoji
+    emoji: "👾",                   // 紀錄列表用的小圖示；沒有 image 時彈窗也用它
     // 想給怪客專屬題目就填在這裡（格式和情侶問答一樣）；留空 [] 就用情侶問答的題庫
     questions: [],
   },
