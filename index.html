@@ -184,6 +184,9 @@ h2,h3,h4,p{margin:0}
 .game-hint{text-align:center;color:var(--muted);line-height:1.7;margin:4px 0 6px;font-size:14px}
 
 /* 撈星星 */
+.catch-wrap{margin:10px 0 16px}
+canvas.catch{width:100%;display:block;border-radius:20px;border:1px solid var(--line);touch-action:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(180,140,255,.14))}
 .whack-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 6px 26px}
 .hole{position:relative;aspect-ratio:1}
 .pit{position:absolute;inset:0;border-radius:50%;overflow:hidden;
@@ -736,6 +739,7 @@ function spin() {
 const GAMES = {
   whack:  { name: '撈星星',   emoji: '⭐', desc: '星星從洞裡冒出來時快點它，小心雷雨雲', start: startWhack,  max: () => cfgOf('whack').maxPoints ?? 40 },
   memory: { name: '星座翻牌', emoji: '🃏', desc: '翻開卡片找出成對的圖案，步數越少越好', start: startMemory, max: () => cfgOf('memory').maxPoints ?? 40 },
+  catch:  { name: '接流星',   emoji: '🌠', desc: '左右拖動月亮接住流星，小心烏雲', start: startCatch,  max: () => cfgOf('catch').maxPoints ?? 40 },
   quiz:   { name: '情侶問答', emoji: '💞', desc: '你有多了解我們？答對越多星星越多',     start: startQuiz,   max: () => { const q = cfgOf('quiz'); const n = Math.min(q.questionsPerRound ?? 5, (q.questions || []).length); return n * (q.pointsPerCorrect ?? 8) + (n ? (q.perfectBonus ?? 0) : 0); } },
 };
 const cfgOf = k => C.games[k] || {};
@@ -869,6 +873,113 @@ function startWhack(body, stat) {
   game.cleanup = () => { if (iv) clearInterval(iv); timers.forEach(clearTimeout); timers.clear(); };
 }
 
+/* ---------- 接流星（拖動月亮接住流星） ---------- */
+function startCatch(body, stat) {
+  const cfg = Object.assign({ seconds: 30, pointsPerScore: 1, maxPoints: 40, speed: 1 }, cfgOf('catch'));
+  let score = 0, left = cfg.seconds, iv = null, raf = null, running = false, last = 0;
+  const timers = new Set();
+  const T = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); fn(); }, ms); timers.add(id); return id; };
+  body.innerHTML = `<p class="game-hint">左右拖動月亮，接住掉下來的流星！<br>⭐ +1　🌟 +3　⛈️ −2</p>
+    <div class="catch-wrap"><canvas class="catch" id="cCv"></canvas></div>
+    <div class="center" id="cCtl"><button class="btn" id="cGo">準備好了，開始！</button></div>`;
+  const cv = $('#cCv', body), ctx = cv.getContext('2d');
+  const EMOJI = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  let W = 0, H = 0;
+  function size() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = cv.clientWidth || 320; H = Math.round(Math.min(innerHeight * .56, W * 1.35));
+    cv.style.height = H + 'px'; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  size();
+  const moon = { x: W / 2, tx: W / 2, w: 62 };
+  const items = [], floats = [];
+  const setStat = () => { stat.textContent = `⏱${left}  ★${score}`; };
+  setStat();
+  // 月亮直接跟著手指走
+  const onPt = e => {
+    if (e.pointerType === 'mouse' && e.type === 'pointermove' && e.buttons === 0) return;
+    const r = cv.getBoundingClientRect();
+    moon.tx = Math.max(moon.w / 2, Math.min(W - moon.w / 2, e.clientX - r.left));
+  };
+  cv.addEventListener('pointerdown', e => { e.preventDefault(); onPt(e); });
+  cv.addEventListener('pointermove', onPt);
+  function spawn() {
+    if (!running) return;
+    const progress = 1 - left / cfg.seconds;
+    const r = Math.random(); let e, v;
+    if (r < .12) { e = '🌟'; v = 3; } else if (r < .34) { e = '⛈️'; v = -2; } else { e = '⭐'; v = 1; }
+    items.push({ x: rand(24, W - 24), y: -30, vy: (rand(150, 210) + progress * 130) * (+cfg.speed || 1), drift: rand(-28, 28), e, v });
+    T(spawn, rand(380, 620) - progress * 180);
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const by = H - 36;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // 月亮下方的接取區
+    ctx.fillStyle = 'rgba(255,217,138,.12)';
+    ctx.beginPath(); ctx.ellipse(moon.x, by + 18, moon.w / 2 + 8, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';   // 畫 emoji 前要用不透明的 fillStyle，否則 Chrome 會把 emoji 一起變淡
+    for (const it of items) {
+      if (it.v > 0) {   // 流星尾巴
+        ctx.strokeStyle = it.v > 1 ? 'rgba(255,217,138,.6)' : 'rgba(255,255,255,.35)'; ctx.lineWidth = it.v > 1 ? 3 : 2; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(it.x, it.y - 12); ctx.lineTo(it.x - it.drift * .25, it.y - 46); ctx.stroke();
+      }
+      ctx.font = `${it.v > 1 ? 30 : 26}px ${EMOJI}`; ctx.fillText(it.e, it.x, it.y);
+    }
+    ctx.font = `46px ${EMOJI}`; ctx.fillText('🌙', moon.x, by);
+    for (const f of floats) {
+      ctx.globalAlpha = Math.max(0, f.life); ctx.font = '700 18px ' + getComputedStyle(document.body).fontFamily;
+      ctx.fillStyle = f.good ? '#ffd98a' : '#ff8aa6'; ctx.fillText(f.txt, f.x, f.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+  function frame(t) {
+    if (!running) return;
+    const dt = Math.min(.05, (t - (last || t)) / 1000); last = t;
+    moon.x += (moon.tx - moon.x) * Math.min(1, dt * 20);
+    const by = H - 36;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i]; it.y += it.vy * dt; it.x += it.drift * dt;
+      if (it.y > by - 28 && it.y < by + 14 && Math.abs(it.x - moon.x) < moon.w / 2 + 8) {
+        score = Math.max(0, score + it.v); setStat();
+        floats.push({ x: it.x, y: by - 34, txt: it.v > 0 ? `+${it.v}` : `${it.v}`, good: it.v > 0, life: 1 });
+        items.splice(i, 1); continue;
+      }
+      if (it.y > H + 30) items.splice(i, 1);
+    }
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.y -= 45 * dt; f.life -= dt * 1.5; if (f.life <= 0) floats.splice(i, 1); }
+    draw();
+    raf = requestAnimationFrame(frame);
+  }
+  draw();
+  $('#cGo', body).onclick = () => {
+    const ctl = $('#cCtl', body);
+    let n = 3;
+    game.playing = true;   // 倒數開始就算在玩，離開要確認
+    const tick = () => {
+      if (!game.playing) return;
+      if (n > 0) { ctl.innerHTML = `<div class="countdown">${n}</div>`; n--; T(tick, 700); return; }
+      ctl.innerHTML = '<div class="muted">接住它們！</div>';
+      running = true; last = 0;
+      iv = setInterval(() => {
+        left--; setStat();
+        if (left <= 0) {
+          clearInterval(iv); iv = null; running = false; game.playing = false;
+          if (raf) cancelAnimationFrame(raf); raf = null;
+          items.length = 0; draw();
+          ctl.innerHTML = '<div class="big gold">時間到！</div>';
+          maxStat('catchBest', score);
+          T(() => finishGame('catch', Math.min(cfg.maxPoints, score * cfg.pointsPerScore), `接到了 ${score} 分`, '🌠'), 600);
+        }
+      }, 1000);
+      spawn();
+      raf = requestAnimationFrame(frame);
+    };
+    tick();
+  };
+  game.cleanup = () => { running = false; if (iv) clearInterval(iv); if (raf) cancelAnimationFrame(raf); timers.forEach(clearTimeout); timers.clear(); };
+}
+
 /* ---------- 星座翻牌（翻牌配對） ---------- */
 function startMemory(body, stat) {
   const cfg = Object.assign({ symbols: ['🌙', '⭐', '🪐', '☄️', '🌸', '💜', '🐰', '🍓'], maxPoints: 40, minPoints: 10, penaltyPerExtraMove: 2 }, cfgOf('memory'));
@@ -989,7 +1100,7 @@ async function thiefAttack(q) {
           note.innerHTML = `<b class="ok">答對了！</b> ${q.note ? esc(q.note) : ''}<br>${esc(t.name)}被你趕跑了 ✨`;
           if (t.image) { ic.classList.add('away'); setTimeout(() => { ic.textContent = '💨'; ic.classList.remove('away'); }, 650); }
           else ic.textContent = '💨';
-          addStat('thiefWins'); log(t.emoji, `趕走了${t.name}，${PN}保住了`); save();
+          addStat('thiefWins'); addStat('quizCorrect'); log(t.emoji, `趕走了${t.name}，${PN}保住了`); save();
           sparkle(innerWidth / 2, innerHeight * .3, 110);
           $('.btn', okBtn).textContent = '太好了 ✨';
         } else {

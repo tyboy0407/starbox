@@ -8,7 +8,7 @@
 
 主要功能：
 1. **每日輪盤**：一天轉一次，獎賞由使用者在 `config.js` 自訂（可設權重）。抽到 `points` 型就直接加點，其他獎賞變成兌換券。
-2. **小遊戲賺點數**（點數叫「星星」）：撈星星（打地鼠）、星座翻牌（記憶配對）、情侶問答。每個遊戲每天有次數上限。
+2. **小遊戲賺點數**（點數叫「星星」）：撈星星（打地鼠）、星座翻牌（記憶配對）、接流星（canvas，拖動月亮接住掉落的流星）。情侶問答已停用但程式保留。每個遊戲每天有次數上限（目前 1 次）。
 3. **兌換所**：用星星兌換禮物，兌換後變成兌換券，她按「使用」時會通知男友。
 4. **許願瓶**：一天放一次，內容透過 **ntfy**（https://ntfy.sh）推播到男友手機。
 
@@ -41,14 +41,14 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
   {
     points, history: [{t, icon, text, delta}],
     spins: { 'YYYY-MM-DD': {label, emoji, t, points} },   // 管理模式重置時 key 會被改成 'YYYY-MM-DD#<ts>'
-    plays: { 'YYYY-MM-DD': { whack: n, memory: n, quiz: n } },
+    plays: { 'YYYY-MM-DD': { whack: n, memory: n, catch: n, quiz: n } },
     wishes: [{id, day, t, text, sent}],                    // 重置時 day 會被改成 '...#reset'
     coupons: [{id, name, emoji, source:'輪盤'|'兌換', t, used, usedAt}],
     redeemCount: { [shopId]: n },
     outbox: [ntfy 訊息],                                     // 送失敗時暫存，之後自動補送
     thief: { 'YYYY-MM-DD': n },                            // 偷星怪客當天出現次數
     streak: { count, last: 'YYYY-MM-DD', best },           // 連續簽到
-    stats: { thiefWins, thiefLoses, quizCorrect, memoryPerfect, whackBest, earned, redeems, birthday },  // 成就用累計
+    stats: { thiefWins, thiefLoses, quizCorrect, memoryPerfect, whackBest, catchBest, earned, redeems, birthday },  // 成就用累計
     badges: { [badgeId]: unlockedAt },
     welcomed, hideA2hs
   }
@@ -58,6 +58,7 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
 - **頁面**：`render.home / wheel / games / shop / wish`，由 `go(page)` 切換。大多是整頁用 innerHTML 重繪。輪盤頁例外：只建一次（`wheelBuilt`），之後只呼叫 `updateWheel()`，這樣 canvas 的旋轉角度才不會被重設。
 - **輪盤**：用 canvas 畫，扇形從 12 點鐘方向開始順時針排列；轉動是對 canvas 加 CSS `rotate`。第 `idx` 格停在指針下方的角度是 `360 - (idx+0.5)*seg`。**結果在動畫開始前就先寫入 state**，避免她轉到一半關掉 App 就能重轉。
 - **遊戲**：都註冊在 `GAMES`（`name / emoji / desc / start(body, stat) / max()`）。共用的機制是 `openGame / closeGame / finishGame` 和 `game.{playing, cleanup}`。遊戲途中離開不扣次數，也不給點數，**只有在 `finishGame` 才會 `addPlay`**。要新增遊戲就照同樣的介面加進 `GAMES`，並在 `config.games` 加上對應的設定區塊。
+- **情侶問答目前停用**（`config.games.quiz.enabled: false`），程式碼保留；`games.quiz.questions` 題庫仍是偷星怪客的題目來源，不能刪。怪客答對也會累計 `stats.quizCorrect`。
 - **偷星怪客**：`maybeThief()` 在啟動（非首次）和 `visibilitychange` 回前景時依 `config.thief.chance` 擲骰，受 `maxPerDay`、`minPoints` 限制，遊戲中或已有彈窗時不出現。`thiefAttack(q)` 用 `modal({onOpen})` 顯示一題（有 `thief.image` 時圖示用 `<img>`，答對滑走、答錯彈跳）（題庫預設共用 `games.quiz.questions`，`thief.questions` 可覆蓋），答對只記錄、答錯 `addPoints(-steal)`。
 - **連續簽到**：`checkin()` 在啟動和 `visibilitychange` 回前景時呼叫，一天一次，依 `config.checkin.rewards` 送星星（超過陣列長度就用最後一個值），斷一天從第 1 天重來。剛簽到的那次不叫偷星怪客。
 - **成就徽章**：`config.badges`（缺少時用 `DEFAULT_BADGES`），每個有 `type/goal`，進度由 `badgeProgress()` 算（部分從 `S.stats` 累計，用 `addStat()/maxStat()` 更新；spins/wishes 直接數現有資料）。`checkBadges()` 在輪盤、遊戲結束、兌換、許願、怪客、簽到後呼叫，新解鎖的排進 `badgeQueue`，`showBadgeQueue()` 只在沒彈窗、沒遊戲時顯示（`modal` 關閉與 `closeGame` 都會再觸發）。`render.badges` 是沒有 tab 的頁面（`#p-badges`），從首頁的入口卡進入，用 SVG 畫天蠍座 15 顆星（`SCORPIO`），第 5 顆是心宿二。

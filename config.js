@@ -64,9 +64,10 @@ window.APP_CONFIG = {
    *   streak        連續簽到天數
    *   spins         轉輪盤次數
    *   thiefWins     趕走偷星怪客次數
-   *   quizCorrect   情侶問答累積答對題數
+   *   quizCorrect   問答累積答對題數（情侶問答＋偷星怪客的題目都算）
    *   memoryPerfect 星座翻牌完美通關（8 步）次數
    *   whackBest     撈星星單局最高分
+   *   catchBest     接流星單局最高分
    *   wishes        放許願瓶次數
    *   redeems       兌換禮物次數
    *   earned        累積獲得的星星總數（只算加的，不算扣的）
@@ -78,12 +79,13 @@ window.APP_CONFIG = {
     { id: "wish10",   name: "許願常客",   emoji: "💌", type: "wishes",        goal: 10,   desc: "放出 10 個許願瓶" },
     { id: "bday",     name: "生日快樂",   emoji: "🎂", type: "birthday",      goal: 1,    desc: "生日當天打開小宇宙" },
     { id: "week",     name: "七日星光",   emoji: "🌟", type: "streak",        goal: 7,    desc: "連續簽到 7 天" },
-    { id: "quiz20",   name: "最懂寶球",   emoji: "💞", type: "quizCorrect",   goal: 20,   desc: "情侶問答累積答對 20 題" },
+    { id: "quiz20",   name: "最懂寶球",   emoji: "💞", type: "quizCorrect",   goal: 20,   desc: "答對偷星怪客的問題 20 次" },
     { id: "memory3",  name: "過目不忘",   emoji: "🃏", type: "memoryPerfect", goal: 3,    desc: "星座翻牌完美通關 3 次" },
     { id: "whack30",  name: "撈星高手",   emoji: "⭐", type: "whackBest",     goal: 30,   desc: "撈星星單局拿到 30 分" },
     { id: "thief5",   name: "怪客剋星",   emoji: "🛡️", type: "thiefWins",     goal: 5,    desc: "趕走偷星怪客 5 次" },
     { id: "rich",     name: "星星富翁",   emoji: "💰", type: "earned",        goal: 1000, desc: "累積獲得 1000 顆星星" },
     { id: "month",    name: "月亮常客",   emoji: "🌙", type: "streak",        goal: 30,   desc: "連續簽到 30 天" },
+    { id: "catch30",  name: "流星獵人",   emoji: "🌠", type: "catchBest",     goal: 30,   desc: "接流星單局接到 30 分" },
   ],
 
   /* ---------- 偷星怪客 ----------
@@ -142,7 +144,7 @@ window.APP_CONFIG = {
 
   /* ---------- 小遊戲 ---------- */
   games: {
-    maxPlaysPerDay: 3,             // 每個遊戲每天可以玩幾次（個別遊戲可再覆蓋）
+    maxPlaysPerDay: 1,             // 每個遊戲每天可以玩幾次（個別遊戲可再覆蓋）
 
     // 撈星星（打地鼠）
     whack: {
@@ -162,9 +164,19 @@ window.APP_CONFIG = {
       penaltyPerExtraMove: 2,      // 每多一步扣幾顆
     },
 
-    // 情侶問答
-    quiz: {
+    // 接流星（左右拖動月亮，接住掉下來的流星）
+    catch: {
       enabled: true,
+      seconds: 30,                 // 一局幾秒
+      pointsPerScore: 1,           // 每 1 分換幾顆星星
+      maxPoints: 40,               // 一局最多拿幾顆星星
+      speed: 1,                    // 流星掉落速度倍率（1 = 正常，0.8 慢一點，1.2 快一點）
+    },
+
+    // 情侶問答（目前停用：enabled 設 false 就不會出現在遊戲列表）
+    // ⚠️ 下面的 questions 題庫「偷星怪客」還會用到，請不要刪掉
+    quiz: {
+      enabled: false,
       questionsPerRound: 5,        // 每局隨機抽幾題
       pointsPerCorrect: 8,         // 答對一題幾顆星星
       perfectBonus: 10,            // 全對額外加碼

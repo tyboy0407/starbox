@@ -88,15 +88,30 @@ async def main():
     await pg.wait_for_timeout(1200)
     await pg.screenshot(path=f'{OUT}/10-memory-end.png')
     await clear_modals()
-    # quiz
-    await pg.click('[data-game=quiz]'); await pg.wait_for_timeout(300)
-    for qi in range(5):
-      await pg.click('.opt >> nth=0'); await pg.wait_for_timeout(200)
-      if qi==0: await pg.screenshot(path=f'{OUT}/11-quiz.png')
-      await pg.click('#qNext'); await pg.wait_for_timeout(250)
-    await pg.wait_for_timeout(500)
-    await pg.screenshot(path=f'{OUT}/12-quiz-end.png')
+    # catch：點畫面各處讓月亮移動，接到多少算多少
+    await pg.click('[data-game=catch]'); await pg.wait_for_timeout(300)
+    await pg.click('#cGo'); await pg.wait_for_timeout(2300)
+    box=await pg.eval_on_selector('#cCv','e=>{const r=e.getBoundingClientRect();return [r.left,r.top,r.width,r.height]}')
+    for i in range(45):
+      x=box[0]+box[2]*(0.12+0.76*((i*7)%10)/10); y=box[1]+box[3]*0.9
+      await pg.mouse.move(x,y); await pg.mouse.down(); await pg.mouse.up()
+      if i==12: await pg.screenshot(path=f'{OUT}/10b-catch.png')
+      await pg.wait_for_timeout(100)
+    await pg.wait_for_timeout(2500)
+    await pg.screenshot(path=f'{OUT}/10c-catch-end.png')
     await clear_modals()
+    # quiz（config 停用時會跳過）
+    if await pg.query_selector('[data-game=quiz]'):
+      await pg.click('[data-game=quiz]'); await pg.wait_for_timeout(300)
+      for qi in range(5):
+        await pg.click('.opt >> nth=0'); await pg.wait_for_timeout(200)
+        if qi==0: await pg.screenshot(path=f'{OUT}/11-quiz.png')
+        await pg.click('#qNext'); await pg.wait_for_timeout(250)
+      await pg.wait_for_timeout(500)
+      await pg.screenshot(path=f'{OUT}/12-quiz-end.png')
+      await clear_modals()
+    else:
+      print('quiz disabled, skipped')
     # thief: 強制跳出偷星怪客，故意答錯，確認星星被扣
     before=await pg.evaluate('JSON.parse(localStorage.starbox_v1).points')
     await pg.evaluate("APP_CONFIG.thief.chance=1; document.dispatchEvent(new Event('visibilitychange'))"); await pg.wait_for_timeout(600)
