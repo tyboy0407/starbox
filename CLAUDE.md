@@ -47,6 +47,9 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
     redeemCount: { [shopId]: n },
     outbox: [ntfy 訊息],                                     // 送失敗時暫存，之後自動補送
     thief: { 'YYYY-MM-DD': n },                            // 偷星怪客當天出現次數
+    streak: { count, last: 'YYYY-MM-DD', best },           // 連續簽到
+    stats: { thiefWins, thiefLoses, quizCorrect, memoryPerfect, whackBest, earned, redeems, birthday },  // 成就用累計
+    badges: { [badgeId]: unlockedAt },
     welcomed, hideA2hs
   }
   ```
@@ -56,6 +59,8 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
 - **輪盤**：用 canvas 畫，扇形從 12 點鐘方向開始順時針排列；轉動是對 canvas 加 CSS `rotate`。第 `idx` 格停在指針下方的角度是 `360 - (idx+0.5)*seg`。**結果在動畫開始前就先寫入 state**，避免她轉到一半關掉 App 就能重轉。
 - **遊戲**：都註冊在 `GAMES`（`name / emoji / desc / start(body, stat) / max()`）。共用的機制是 `openGame / closeGame / finishGame` 和 `game.{playing, cleanup}`。遊戲途中離開不扣次數，也不給點數，**只有在 `finishGame` 才會 `addPlay`**。要新增遊戲就照同樣的介面加進 `GAMES`，並在 `config.games` 加上對應的設定區塊。
 - **偷星怪客**：`maybeThief()` 在啟動（非首次）和 `visibilitychange` 回前景時依 `config.thief.chance` 擲骰，受 `maxPerDay`、`minPoints` 限制，遊戲中或已有彈窗時不出現。`thiefAttack(q)` 用 `modal({onOpen})` 顯示一題（有 `thief.image` 時圖示用 `<img>`，答對滑走、答錯彈跳）（題庫預設共用 `games.quiz.questions`，`thief.questions` 可覆蓋），答對只記錄、答錯 `addPoints(-steal)`。
+- **連續簽到**：`checkin()` 在啟動和 `visibilitychange` 回前景時呼叫，一天一次，依 `config.checkin.rewards` 送星星（超過陣列長度就用最後一個值），斷一天從第 1 天重來。剛簽到的那次不叫偷星怪客。
+- **成就徽章**：`config.badges`（缺少時用 `DEFAULT_BADGES`），每個有 `type/goal`，進度由 `badgeProgress()` 算（部分從 `S.stats` 累計，用 `addStat()/maxStat()` 更新；spins/wishes 直接數現有資料）。`checkBadges()` 在輪盤、遊戲結束、兌換、許願、怪客、簽到後呼叫，新解鎖的排進 `badgeQueue`，`showBadgeQueue()` 只在沒彈窗、沒遊戲時顯示（`modal` 關閉與 `closeGame` 都會再觸發）。`render.badges` 是沒有 tab 的頁面（`#p-badges`），從首頁的入口卡進入，用 SVG 畫天蠍座 15 顆星（`SCORPIO`），第 5 顆是心宿二。
 - **首頁訊息模板**：`fillTpl()` 會把 `{第幾天}`、`{生日倒數}`、`{名字}` 換成實際值；生日當月且有 `config.birthMonthMessage` 時，「給你的話」卡片改顯示它。
 - **管理模式**：在首頁連點月亮 5 下，輸入 `config.adminCode`。可以加減星星、重置今日次數（含怪客）、測試通知、召喚偷星怪客、清除資料。
 - **特效**：背景星空用 `#sky` canvas，持續播放，分頁隱藏時暫停；慶祝特效 `sparkle()` 畫在 `#fx` canvas 上。

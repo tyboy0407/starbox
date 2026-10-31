@@ -80,6 +80,43 @@ h2,h3,h4,p{margin:0}
 .m-icon.thief{animation:thiefShake .7s ease-in-out infinite;filter:drop-shadow(0 0 16px rgba(255,138,166,.6))}
 @keyframes thiefShake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-6px) rotate(-8deg)}40%{transform:translateX(5px) rotate(6deg)}60%{transform:translateX(-4px) rotate(-4deg)}80%{transform:translateX(4px) rotate(4deg)}}
 .sheet .opt{font-size:16px;padding:12px 14px;margin:8px 0;text-align:center}
+/* 連續簽到 */
+.streak{display:flex;justify-content:space-between;gap:4px;margin:4px 0 10px}
+.s-dot{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 0 6px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--muted);font-size:11px;line-height:1.2}
+.s-dot b{font-size:14px}
+.s-dot.on{background:linear-gradient(160deg,rgba(255,217,138,.28),rgba(255,158,207,.18));border-color:rgba(255,217,138,.5);color:var(--gold)}
+.s-dot.now{box-shadow:0 0 14px rgba(255,217,138,.45);transform:scale(1.06)}
+/* 成就星圖 */
+.entry{display:flex;align-items:center;gap:12px;width:100%;text-align:left}
+.entry .e-ic{font-size:30px}
+.entry .e-txt{flex:1}
+.entry .e-txt small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.entry .e-arrow{color:var(--muted);font-size:22px}
+.back{display:inline-flex;align-items:center;gap:4px;color:var(--muted);font-size:14px;padding:6px 0}
+.cmap{margin:6px auto 12px;max-width:330px}
+.cmap svg{width:100%;height:auto;display:block;overflow:visible}
+.cline{stroke:rgba(255,255,255,.2);stroke-width:.6;stroke-dasharray:1.6 1.2}
+.cline.on{stroke:rgba(255,217,138,.65);stroke-dasharray:none;stroke-width:.8}
+.cdeco{fill:rgba(255,255,255,.35)}
+.cstar{cursor:pointer}
+.cstar .glow{fill:rgba(255,217,138,.28);animation:twinkle 2.6s ease-in-out infinite}
+.cstar.on .core{fill:rgba(255,217,138,.2);stroke:rgba(255,217,138,.85);stroke-width:.5}
+.cstar.off .core{fill:rgba(255,255,255,.06);stroke:rgba(255,255,255,.3);stroke-width:.4}
+.cstar.off text{fill:rgba(255,255,255,.45)}
+@keyframes twinkle{50%{opacity:.45}}
+.blist{list-style:none;margin:0;padding:0}
+.blist li{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid rgba(255,255,255,.07)}
+.blist li:first-child{border-top:0;padding-top:0}
+.b-ic{flex:none;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;background:rgba(255,255,255,.07);border:1px solid var(--line)}
+.blist li.on .b-ic{background:linear-gradient(160deg,rgba(255,217,138,.35),rgba(255,158,207,.2));border-color:rgba(255,217,138,.6);box-shadow:0 0 14px rgba(255,217,138,.35)}
+.blist li.off .b-ic{filter:grayscale(1);opacity:.55}
+.b-txt{flex:1;min-width:0}
+.b-name{font-weight:700}
+.b-desc{font-size:13px;color:var(--muted)}
+.b-bar{height:5px;border-radius:5px;background:rgba(255,255,255,.1);margin-top:7px;overflow:hidden}
+.b-bar div{height:100%;background:linear-gradient(90deg,#ffd98a,#ff9ecf)}
+.b-pct{font-size:12px;color:var(--muted);white-space:nowrap}
+.badge-pop{display:inline-block;animation:bump .8s ease}
 .m-icon img.thief-img{width:170px;max-width:60vw;height:auto;display:block;margin:0 auto 4px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.45))}
 .m-icon.away{animation:thiefAway .65s ease-in forwards}
 @keyframes thiefAway{to{transform:translateX(220px) rotate(25deg);opacity:0}}
@@ -289,6 +326,7 @@ textarea.wish::placeholder{color:rgba(185,175,219,.6)}
     <section class="page" id="p-games"></section>
     <section class="page" id="p-shop"></section>
     <section class="page" id="p-wish"></section>
+    <section class="page" id="p-badges"></section>
   </main>
 </div>
 
@@ -353,7 +391,10 @@ const fmtTime = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.ge
 const fmtDate = t => { const d = new Date(t); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; };
 
 /* ================= 資料（存在她手機裡） ================= */
-const fresh = () => ({ points: C.startingPoints || 0, history: [], spins: {}, plays: {}, wishes: [], coupons: [], redeemCount: {}, outbox: [], welcomed: false, hideA2hs: false, thief: {} });
+const fresh = () => ({ points: C.startingPoints || 0, history: [], spins: {}, plays: {}, wishes: [], coupons: [], redeemCount: {}, outbox: [], welcomed: false, hideA2hs: false, thief: {},
+  streak: { count: 0, last: '', best: 0 },     // 連續簽到
+  stats: {},                                    // 成就用的累計數字（thiefWins、quizCorrect…）
+  badges: {} });                                // 已解鎖成就 { id: 時間 }
 let S;
 try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || {}); } catch (e) { S = fresh(); }
 function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
@@ -364,6 +405,7 @@ function log(icon, text, delta = 0) {
 }
 function addPoints(delta, icon, text) {
   S.points = Math.max(0, S.points + delta);
+  if (delta > 0) addStat('earned', delta);
   log(icon, text, delta); save(); renderPoints(true);
 }
 function renderPoints(bump) {
@@ -425,7 +467,7 @@ function modal({ icon = '', title = '', html = '', buttons = [{ text: '好', pri
       if (done) return; done = true;
       const values = {};
       $$('input,textarea', bg).forEach(el => { if (el.name) values[el.name] = el.value; });
-      bg.classList.add('out'); setTimeout(() => bg.remove(), 180);
+      bg.classList.add('out'); setTimeout(() => { bg.remove(); showBadgeQueue(); }, 180);
       resolve({ i, values });
     };
     bg.addEventListener('click', e => {
@@ -554,6 +596,8 @@ render.home = () => {
       <button class="task" data-go="wish"><span class="t-ic">💌</span><span class="t-txt">許願瓶<small>${wish ? '今天的願望已經漂走囉' : '今天還可以許一個願'}</small></span><span class="t-st ${wish ? 'done' : ''}">${wish ? '✓ 完成' : 'GO'}</span></button>
       <button class="task" data-go="games"><span class="t-ic">🎮</span><span class="t-txt">小遊戲<small>今天還能玩 ${left} / ${total} 次</small></span><span class="t-st ${left ? '' : 'done'}">${left ? 'GO' : '✓ 完成'}</span></button>
     </div>
+    <div class="card"><h4>連續簽到</h4>${streakDotsHtml()}<div class="muted small center">${S.streak.count ? `已連續 ${S.streak.count} 天${S.streak.last === dayKey() ? '，今天簽到過了 ✓' : ''}` : '每天打開小宇宙就會自動簽到'}</div></div>
+    <button class="card entry" data-go="badges"><span class="e-ic">🦂</span><span class="e-txt">天蠍座成就星圖<small>已點亮 ${badgeList().filter(badgeDone).length} / ${badgeList().length} 顆星</small></span><span class="e-arrow">›</span></button>
     ${homeMessage() ? `<div class="card letter"><h4>給你的話</h4><p>${nl2br(homeMessage())}</p><div class="sign">— ${esc(C.fromName)}</div></div>` : ''}
     <div class="card"><h4>最近的紀錄</h4>${historyHtml(8)}</div>`;
   $('#moon').onclick = moonTap;
@@ -684,6 +728,7 @@ function spin() {
       html: p.points ? `<p>${PE} +${p.points} ${PN}已經存進去囉</p>` : `<p>已經放進「兌換」頁的<b>我的兌換券</b>，<br>拿去找${esc(C.fromName)}兌現吧！</p>`,
       buttons: [{ text: '太棒了', primary: true }]
     });
+    checkBadges();
   }, 5550);
 }
 
@@ -731,6 +776,7 @@ function closeGame() {
   $('#game').classList.add('hidden');
   document.body.classList.remove('noscroll');
   if (render[current]) render[current]();
+  showBadgeQueue();
 }
 $('#gExit').onclick = async () => {
   if (game.playing) {
@@ -747,6 +793,7 @@ async function finishGame(k, pts, summary, icon) {
   addPoints(pts, GAMES[k].emoji, `${GAMES[k].name}：${summary}`);
   sparkle();
   await modal({ icon: icon || '🎉', title: '遊戲結束！', html: `<p>${esc(summary)}</p><p class="big gold">${PE} +${pts} ${PN}</p><p class="muted small">這個遊戲今天還能玩 ${playsLeft(k)} 次</p>`, buttons: [{ text: '好耶', primary: true }], dismiss: false });
+  checkBadges();
   closeGame();
 }
 
@@ -811,6 +858,7 @@ function startWhack(body, stat) {
           clearInterval(iv); iv = null; game.playing = false;
           holes.forEach(hide);
           ctl.innerHTML = '<div class="big gold">時間到！</div>';
+          maxStat('whackBest', score);
           T(() => finishGame('whack', Math.min(cfg.maxPoints, score * cfg.pointsPerHit), `撈到了 ${score} 分`, '⭐'), 600);
         }
       }, 1000);
@@ -845,6 +893,7 @@ function startMemory(body, stat) {
         clearInterval(iv); iv = null; game.playing = false;
         const sec = Math.floor((Date.now() - t0) / 1000);
         const pts = Math.max(cfg.minPoints, Math.min(cfg.maxPoints, cfg.maxPoints - (moves - syms.length) * cfg.penaltyPerExtraMove));
+        if (moves === syms.length) addStat('memoryPerfect');
         setTimeout(() => finishGame('memory', pts, `${moves} 步、${sec} 秒完成配對${moves === syms.length ? '，完美！' : ''}`, '🃏'), 700);
       }
     } else {
@@ -880,7 +929,7 @@ function startQuiz(body, stat) {
       if (answered) return; answered = true;
       const o = opts[+b.dataset.j];
       btns.forEach((x, k) => { x.disabled = true; if (opts[k].ok) x.classList.add('right'); });
-      if (o.ok) correct++; else b.classList.add('wrong');
+      if (o.ok) { correct++; addStat('quizCorrect'); } else b.classList.add('wrong');
       $('#qnote', body).innerHTML = (o.ok ? '<b class="ok">答對了！</b> ' : '<b class="ng">差一點～</b> ') + (q.note ? esc(q.note) : '');
       $('.qbar div', body).style.width = ((i + 1) / qs.length * 100) + '%';
       $('#qNext', body).classList.remove('hidden');
@@ -940,14 +989,14 @@ async function thiefAttack(q) {
           note.innerHTML = `<b class="ok">答對了！</b> ${q.note ? esc(q.note) : ''}<br>${esc(t.name)}被你趕跑了 ✨`;
           if (t.image) { ic.classList.add('away'); setTimeout(() => { ic.textContent = '💨'; ic.classList.remove('away'); }, 650); }
           else ic.textContent = '💨';
-          log(t.emoji, `趕走了${t.name}，${PN}保住了`); save();
+          addStat('thiefWins'); log(t.emoji, `趕走了${t.name}，${PN}保住了`); save();
           sparkle(innerWidth / 2, innerHeight * .3, 110);
           $('.btn', okBtn).textContent = '太好了 ✨';
         } else {
           b.classList.add('wrong');
           note.innerHTML = `<b class="ng">答錯了…</b> ${esc(t.name)}偷走了 ${PE} ${steal} 顆${PN}`;
           if (t.image) ic.classList.add('win'); else ic.textContent = '😈';
-          addPoints(-steal, t.emoji, `${t.name}偷走了 ${steal} 顆${PN}`);
+          addStat('thiefLoses'); addPoints(-steal, t.emoji, `${t.name}偷走了 ${steal} 顆${PN}`);
           $('.btn', okBtn).textContent = '可惡 😤';
         }
         okBtn.classList.remove('hidden');
@@ -955,7 +1004,122 @@ async function thiefAttack(q) {
     }
   });
   if (render[current] && !game.key) render[current]();
+  checkBadges();
 }
+
+/* ================= 連續簽到 ================= */
+const checkinCfg = () => Object.assign({ enabled: true, rewards: [5, 8, 10, 12, 15, 20, 30] }, C.checkin || {});
+const yesterdayKey = () => { const d = new Date(); d.setDate(d.getDate() - 1); return dayKey(d); };
+function checkinReward(n) { const r = checkinCfg().rewards; if (!Array.isArray(r) || !r.length) return 0; return +r[Math.min(n, r.length) - 1] || 0; }
+function streakDotsHtml() {
+  const r = checkinCfg().rewards || [], lit = Math.min(S.streak.count || 0, r.length);
+  return `<div class="streak">${r.map((p, i) => `<div class="s-dot ${i < lit ? 'on' : ''} ${i === lit - 1 ? 'now' : ''}"><b>${i + 1}</b><small>+${+p || 0}</small></div>`).join('')}</div>`;
+}
+// 每天第一次打開 App 時呼叫；回傳 true 代表剛簽到（有顯示彈窗）
+async function checkin() {
+  const cfg = checkinCfg();
+  if (!cfg.enabled || !S.welcomed || game.key) return false;
+  if (!S.streak) S.streak = { count: 0, last: '', best: 0 };
+  const today = dayKey();
+  if (S.streak.last === today) return false;
+  S.streak.count = S.streak.last === yesterdayKey() ? (S.streak.count || 0) + 1 : 1;
+  S.streak.last = today;
+  S.streak.best = Math.max(S.streak.best || 0, S.streak.count);
+  const pts = checkinReward(S.streak.count);
+  if (pts) addPoints(pts, '📅', `連續簽到第 ${S.streak.count} 天`); else save();
+  if (render[current] && !game.key) render[current]();
+  sparkle(innerWidth / 2, innerHeight * .35, 70);
+  await modal({
+    icon: '📅', title: `連續簽到第 ${S.streak.count} 天`,
+    html: `${streakDotsHtml()}<p class="big gold">${PE} +${pts} ${PN}</p><p class="muted small">明天再來可以拿 ${PE} ${checkinReward(S.streak.count + 1)}，中斷就要從第 1 天重來喔</p>`,
+    buttons: [{ text: '收下 ✨', primary: true }]
+  });
+  checkBadges();
+  return true;
+}
+
+/* ================= 成就徽章（天蠍座星圖） ================= */
+// 天蠍座 15 顆星的位置（viewBox 100×112）：右上是螯，往左下是身體，左下勾起來的是尾巴；第 5 顆是心宿二（Antares）
+const SCORPIO = {
+  stars: [[74, 10], [70, 22], [72, 34], [60, 32], [54, 40], [50, 50], [47, 62], [42, 73], [36, 83], [28, 92], [18, 100], [10, 92], [12, 82], [20, 74], [24, 70]],
+  lines: [[0, 1], [1, 2], [1, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 13], [13, 14]],
+};
+const DEFAULT_BADGES = [
+  { id: 'first', name: '初次見面', emoji: '🌱', type: 'streak', goal: 1, desc: '第一次簽到' },
+  { id: 'wheel7', name: '幸運之輪', emoji: '🎡', type: 'spins', goal: 7, desc: '轉了 7 次輪盤' },
+  { id: 'redeem1', name: '第一份禮物', emoji: '🎁', type: 'redeems', goal: 1, desc: '第一次兌換禮物' },
+  { id: 'wish10', name: '許願常客', emoji: '💌', type: 'wishes', goal: 10, desc: '放出 10 個許願瓶' },
+  { id: 'week', name: '七日星光', emoji: '🌟', type: 'streak', goal: 7, desc: '連續簽到 7 天' },
+];
+const badgeList = () => (Array.isArray(C.badges) && C.badges.length ? C.badges : DEFAULT_BADGES).filter(b => b && b.id && b.type).slice(0, SCORPIO.stars.length);
+function addStat(k, d = 1) { if (!S.stats) S.stats = {}; S.stats[k] = (S.stats[k] || 0) + d; }
+function maxStat(k, v) { if (!S.stats) S.stats = {}; S.stats[k] = Math.max(S.stats[k] || 0, v); }
+function badgeProgress(b) {
+  const st = S.stats || {};
+  switch (b.type) {
+    case 'streak': return Math.max((S.streak || {}).best || 0, (S.streak || {}).count || 0);
+    case 'spins': return Object.keys(S.spins).length;
+    case 'wishes': return S.wishes.length;
+    default: return st[b.type] || 0;
+  }
+}
+const badgeDone = b => !!(S.badges || {})[b.id];
+const badgeQueue = [];
+let showingBadge = false;
+// 檢查有沒有新達成的成就；有的話記錄並排進佇列，等沒有彈窗時再顯示
+function checkBadges() {
+  if (!S.badges) S.badges = {};
+  let changed = false;
+  badgeList().forEach(b => {
+    if (S.badges[b.id]) return;
+    if (badgeProgress(b) >= (+b.goal || 1)) { S.badges[b.id] = Date.now(); badgeQueue.push(b); log('🏅', `點亮成就「${b.name}」`); changed = true; }
+  });
+  if (changed) save();
+  showBadgeQueue();
+}
+async function showBadgeQueue() {
+  if (showingBadge || !badgeQueue.length || game.key || $('.modal-bg:not(.out)')) return;
+  showingBadge = true;
+  while (badgeQueue.length) {
+    const b = badgeQueue.shift();
+    sparkle(innerWidth / 2, innerHeight * .3, 130);
+    const { i } = await modal({
+      icon: `<span class="badge-pop">${esc(b.emoji || '⭐')}</span>`, title: '點亮新成就！',
+      html: `<p class="big gold">${esc(b.name)}</p><p class="muted">${esc(b.desc || '')}</p><p class="muted small">天蠍座星圖上又亮了一顆星 ✦</p>`,
+      buttons: [{ text: '去看星圖' }, { text: '太棒了', primary: true }]
+    });
+    if (i === 0) { showingBadge = false; go('badges'); return; }
+  }
+  showingBadge = false;
+  if (render[current] && !game.key) render[current]();
+}
+render.badges = () => {
+  const list = badgeList(), done = list.filter(badgeDone).length, st = SCORPIO.stars;
+  const lit = i => !!(list[i] && badgeDone(list[i]));
+  const svg = `<svg viewBox="-6 2 112 108" xmlns="http://www.w3.org/2000/svg">
+    ${SCORPIO.lines.map(([a, b]) => `<line class="cline ${lit(a) && lit(b) ? 'on' : ''}" x1="${st[a][0]}" y1="${st[a][1]}" x2="${st[b][0]}" y2="${st[b][1]}"/>`).join('')}
+    ${st.map(([x, y], i) => {
+      const b = list[i];
+      if (!b) return `<circle class="cdeco" cx="${x}" cy="${y}" r="1.4"/>`;
+      const on = badgeDone(b), r = i === 4 ? 5.4 : 4.4;
+      return `<g class="cstar ${on ? 'on' : 'off'}" data-b="${i}">${on ? `<circle class="glow" cx="${x}" cy="${y}" r="${r + 3.2}"/>` : ''}<circle class="core" cx="${x}" cy="${y}" r="${r}"/><text x="${x}" y="${y}" dy="0.36em" text-anchor="middle" font-size="${on ? (i === 4 ? 6.4 : 5.4) : 3.6}">${on ? esc(b.emoji || '⭐') : '✦'}</text></g>`;
+    }).join('')}
+  </svg>`;
+  $('#p-badges').innerHTML = `<button class="back" id="bBack">‹ 回首頁</button>
+    <h2 class="ptitle">天蠍座成就星圖</h2>
+    <p class="muted center small">每達成一個成就，星圖就會亮起一顆星<br>已點亮 <b class="gold">${done} / ${list.length}</b> 顆</p>
+    <div class="cmap">${svg}</div>
+    <div class="card"><h4>成就列表</h4><ul class="blist">${list.map(b => {
+      const g = +b.goal || 1, p = Math.min(badgeProgress(b), g), on = badgeDone(b);
+      return `<li class="${on ? 'on' : 'off'}"><div class="b-ic">${esc(b.emoji || '⭐')}</div><div class="b-txt"><div class="b-name">${esc(b.name)}</div><div class="b-desc">${esc(b.desc || '')}</div>${on ? `<div class="b-desc gold">✓ ${fmtDate(S.badges[b.id])} 點亮</div>` : `<div class="b-bar"><div style="width:${p / g * 100}%"></div></div>`}</div>${on ? '' : `<div class="b-pct">${p} / ${g}</div>`}</li>`;
+    }).join('')}</ul></div>`;
+  $('#bBack').onclick = () => go('home');
+  $$('.cstar', $('#p-badges')).forEach(el => el.onclick = () => {
+    const b = list[+el.dataset.b]; if (!b) return;
+    const g = +b.goal || 1, p = Math.min(badgeProgress(b), g);
+    modal({ icon: esc(b.emoji || '⭐'), title: esc(b.name), html: `<p>${esc(b.desc || '')}</p><p class="muted small">${badgeDone(b) ? `✓ ${fmtDate(S.badges[b.id])} 點亮` : `進度 ${p} / ${g}`}</p>` });
+  });
+};
 
 /* ================= 兌換所 ================= */
 render.shop = () => {
@@ -988,8 +1152,10 @@ async function redeem(id) {
   if (i !== 1 || S.points < it.cost) return;
   S.redeemCount[id] = (S.redeemCount[id] || 0) + 1;
   S.coupons.unshift({ id: uid(), name: it.name, emoji: it.emoji || '🎁', source: '兌換', t: Date.now(), used: false });
+  addStat('redeems');
   addPoints(-it.cost, it.emoji || '🎁', `兌換 ${it.name}`);
   render.shop(); sparkle();
+  checkBadges();
   toast('兌換成功！已放進「我的兌換券」');
   if (C.ntfy.notifyRedeem !== false) notify({ title: `🎁 ${C.herName} 兌換了禮物`, message: `${it.emoji || ''} ${it.name}（-${it.cost} ${PN}，還剩 ${S.points}）\n${fmtTime(Date.now())}`, tags: ['gift'] });
 }
@@ -1061,6 +1227,7 @@ async function sendWish() {
     await sending;
     if (current === 'wish') render.wish();
     toast('許願瓶已經漂向遠方了 ✨');
+    checkBadges();
   }, 3300);
 }
 
@@ -1090,7 +1257,8 @@ async function admin() {
     delete S.plays[d];
     S.wishes.forEach(w => { if (w.day === d) w.day = d + '#reset'; });
     if (S.thief) delete S.thief[d];
-    save(); toast('今天的輪盤、遊戲、許願瓶、怪客都重置了');
+    if (S.streak && S.streak.last === d) { S.streak.last = yesterdayKey(); S.streak.count = Math.max(0, S.streak.count - 1); }
+    save(); toast('今天的輪盤、遊戲、許願瓶、怪客、簽到都重置了');
   } else if (b.i === 2) {
     const r = await sendNtfy({ title: '🔔 測試通知', message: '看到這則就代表許願瓶通知設定成功了！', tags: ['white_check_mark'] });
     toast(r === 'ok' ? '已送出，看看 ntfy 有沒有收到' : r === 'skip' ? '還沒在 config.js 填 ntfy topic' : '送出失敗，檢查網路或 topic');
@@ -1118,10 +1286,12 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if
 document.addEventListener('gesturestart', e => e.preventDefault());
 
 let lastDay = dayKey();
-document.addEventListener('visibilitychange', () => {
+document.addEventListener('visibilitychange', async () => {
   if (document.hidden) return;
   flushOutbox();
   if (dayKey() !== lastDay) { lastDay = dayKey(); if (!game.key && render[current]) render[current](); }
+  if (birthdayDays() === 0) maxStat('birthday', 1);
+  if (await checkin()) return;   // 剛簽到就先不叫怪客出來
   maybeThief();
 });
 addEventListener('online', flushOutbox);
@@ -1130,16 +1300,20 @@ go('home');
 flushOutbox();
 
 (async () => {
-  if (!S.welcomed) {
+  const firstOpen = !S.welcomed;
+  if (firstOpen) {
     S.welcomed = true;
     if (C.startingPoints) log('🎁', `見面禮 ${C.startingPoints} 顆${PN}`, C.startingPoints);
     save(); render.home();
     sparkle();
     await modal({ icon: '✨', title: `嗨 ${esc(C.herName)}，歡迎來到<br>${esc(C.appTitle || '星星小宇宙')}`, html: `<p>${nl2br(fillTpl(C.welcomeMessage))}</p>${C.startingPoints ? `<p class="gold">送你 ${PE} ${C.startingPoints} 顆${PN}當見面禮</p>` : ''}`, buttons: [{ text: '開始探索 🌙', primary: true }] });
-  } else {
-    if (birthdayDays() === 0) setTimeout(() => sparkle(innerWidth / 2, innerHeight * .3, 120), 500);
-    setTimeout(maybeThief, 900);
+  } else if (birthdayDays() === 0) {
+    setTimeout(() => sparkle(innerWidth / 2, innerHeight * .3, 120), 500);
   }
+  if (birthdayDays() === 0) maxStat('birthday', 1);
+  const signed = await checkin();
+  checkBadges();
+  if (!firstOpen && !signed) setTimeout(maybeThief, 900);   // 第一次打開或剛簽到就不叫怪客
 })();
 })();
 </script>

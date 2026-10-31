@@ -31,9 +31,19 @@ async def main():
       await route.fulfill(body=open(f'{APP}/{path}','rb').read(),content_type=ct)
     await pg.route('http://localtest/**',files)
     await pg.route(re.compile(r'https://fonts\..*'),lambda r: r.fulfill(body='',content_type='text/css'))
+    async def clear_modals():
+      # 把所有還開著的彈窗（簽到、成就…）按掉，按最後一顆（主要）按鈕
+      for _ in range(6):
+        m=await pg.query_selector('.modal-bg:not(.out)')
+        if not m: break
+        btns=await m.query_selector_all('.m-btns .btn')
+        if not btns: break
+        await btns[-1].click(); await pg.wait_for_timeout(350)
     await pg.goto('http://localtest/'); await pg.wait_for_timeout(800)
     await pg.screenshot(path=f'{OUT}/1-welcome.png')
-    await pg.click('.modal-bg .btn'); await pg.wait_for_timeout(400)
+    await pg.click('.modal-bg .btn'); await pg.wait_for_timeout(500)
+    await pg.screenshot(path=f'{OUT}/1b-checkin.png')
+    await clear_modals()
     await pg.screenshot(path=f'{OUT}/2-home.png',full_page=True)
     # wheel
     await pg.click('.tab[data-page=wheel]'); await pg.wait_for_timeout(500)
@@ -48,7 +58,7 @@ async def main():
       let ang=Math.atan2(m[1],m[0])*180/Math.PI; ang=((ang%360)+360)%360; const prizes=APP_CONFIG.wheel.prizes; const seg=360/prizes.length;
       const atTop=((360-ang)%360); return {won:s.spins[k].label, pointerOn:prizes[Math.floor(atTop/seg)].label}}''')
     print('wheel',res)
-    await pg.click('.modal-bg .btn'); await pg.wait_for_timeout(300)
+    await clear_modals()
     # games list
     await pg.click('.tab[data-page=games]'); await pg.wait_for_timeout(300)
     await pg.screenshot(path=f'{OUT}/6-games.png')
@@ -64,7 +74,7 @@ async def main():
     await pg.screenshot(path=f'{OUT}/7-whack.png')
     await pg.wait_for_timeout(2500)
     await pg.screenshot(path=f'{OUT}/8-whack-end.png')
-    await pg.click('.modal-bg .btn'); await pg.wait_for_timeout(400)
+    await clear_modals()
     # memory: solve perfectly
     await pg.click('[data-game=memory]'); await pg.wait_for_timeout(300)
     syms=await pg.eval_on_selector_all('.mcard .front','els=>els.map(e=>e.textContent)')
@@ -77,7 +87,7 @@ async def main():
         await pg.wait_for_timeout(400); await pg.screenshot(path=f'{OUT}/9-memory.png'); first=False
     await pg.wait_for_timeout(1200)
     await pg.screenshot(path=f'{OUT}/10-memory-end.png')
-    await pg.click('.modal-bg .btn'); await pg.wait_for_timeout(400)
+    await clear_modals()
     # quiz
     await pg.click('[data-game=quiz]'); await pg.wait_for_timeout(300)
     for qi in range(5):
@@ -86,7 +96,7 @@ async def main():
       await pg.click('#qNext'); await pg.wait_for_timeout(250)
     await pg.wait_for_timeout(500)
     await pg.screenshot(path=f'{OUT}/12-quiz-end.png')
-    await pg.click('.modal-bg .btn'); await pg.wait_for_timeout(400)
+    await clear_modals()
     # thief: 強制跳出偷星怪客，故意答錯，確認星星被扣
     before=await pg.evaluate('JSON.parse(localStorage.starbox_v1).points')
     await pg.evaluate("APP_CONFIG.thief.chance=1; document.dispatchEvent(new Event('visibilitychange'))"); await pg.wait_for_timeout(600)
@@ -98,13 +108,15 @@ async def main():
     await pg.screenshot(path=f'{OUT}/12c-thief-wrong.png')
     after=await pg.evaluate('JSON.parse(localStorage.starbox_v1).points')
     print('thief points',before,'->',after)
-    await pg.click('.modal-bg .btn'); await pg.wait_for_timeout(400)
+    await clear_modals()
     # shop
     await pg.click('.tab[data-page=shop]'); await pg.wait_for_timeout(300)
     await pg.screenshot(path=f'{OUT}/13-shop.png',full_page=True)
     btn=await pg.query_selector('[data-redeem]:not([disabled])')
     if btn:
       await btn.click(); await pg.wait_for_timeout(400); await pg.click('.modal-bg .btn >> nth=1'); await pg.wait_for_timeout(600)
+      await pg.screenshot(path=f'{OUT}/13b-badge-unlock.png')
+      await clear_modals()
       await pg.click('[data-use]'); await pg.wait_for_timeout(300); await pg.click('.modal-bg .btn >> nth=1'); await pg.wait_for_timeout(500)
     await pg.screenshot(path=f'{OUT}/14-shop-after.png',full_page=True)
     # wish
@@ -117,10 +129,16 @@ async def main():
     await pg.screenshot(path=f'{OUT}/17-wish-sending.png')
     await pg.wait_for_timeout(2600)
     await pg.screenshot(path=f'{OUT}/18-wish-done.png',full_page=True)
+    await clear_modals()
     await pg.click('.tab[data-page=home]'); await pg.wait_for_timeout(400)
     await pg.screenshot(path=f'{OUT}/19-home-after.png',full_page=True)
+    # badges page
+    await pg.click('[data-go=badges]'); await pg.wait_for_timeout(500)
+    await pg.screenshot(path=f'{OUT}/20-badges.png',full_page=True)
+    await pg.click('#bBack'); await pg.wait_for_timeout(300)
     st=await pg.evaluate('JSON.parse(localStorage.starbox_v1)')
     print('points',st['points'],'plays',st['plays'],'coupons',[(c['name'],c['used']) for c in st['coupons']],'outbox',len(st['outbox']),'wish sent',[w['sent'] for w in st['wishes']])
+    print('streak',st['streak'],'stats',st['stats'],'badges',list(st['badges'].keys()))
     print('ntfy',json.dumps(sent,ensure_ascii=False))
     print('errors',errs)
     await b.close()

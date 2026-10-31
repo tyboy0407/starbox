@@ -49,6 +49,43 @@ window.APP_CONFIG = {
     notifySpin: true,              // 她轉輪盤時通知你抽到什麼
   },
 
+  /* ---------- 連續簽到 ----------
+   * 每天第一次打開 App 會自動簽到送星星，連續天數越多送越多；
+   * 中斷一天就從第 1 天重來。rewards 是第 1～7 天各送幾顆，第 8 天以後都送最後一個數字。 */
+  checkin: {
+    enabled: true,
+    rewards: [5, 8, 10, 12, 15, 20, 30],
+  },
+
+  /* ---------- 成就徽章（天蠍座星圖） ----------
+   * 每個成就是星圖上的一顆星，達成就會亮起來（最多 15 個，天蠍座有 15 顆星）。
+   * 第 5 個成就會放在天蠍座的心臟「心宿二」，是最大的那顆星。
+   * type 可以填的種類（goal 是目標數字）：
+   *   streak        連續簽到天數
+   *   spins         轉輪盤次數
+   *   thiefWins     趕走偷星怪客次數
+   *   quizCorrect   情侶問答累積答對題數
+   *   memoryPerfect 星座翻牌完美通關（8 步）次數
+   *   whackBest     撈星星單局最高分
+   *   wishes        放許願瓶次數
+   *   redeems       兌換禮物次數
+   *   earned        累積獲得的星星總數（只算加的，不算扣的）
+   *   birthday      生日當天打開 App（goal 填 1） */
+  badges: [
+    { id: "first",    name: "初次見面",   emoji: "🌱", type: "streak",        goal: 1,    desc: "第一次簽到" },
+    { id: "wheel7",   name: "幸運之輪",   emoji: "🎡", type: "spins",         goal: 7,    desc: "轉了 7 次輪盤" },
+    { id: "redeem1",  name: "第一份禮物", emoji: "🎁", type: "redeems",       goal: 1,    desc: "第一次用星星兌換禮物" },
+    { id: "wish10",   name: "許願常客",   emoji: "💌", type: "wishes",        goal: 10,   desc: "放出 10 個許願瓶" },
+    { id: "bday",     name: "生日快樂",   emoji: "🎂", type: "birthday",      goal: 1,    desc: "生日當天打開小宇宙" },
+    { id: "week",     name: "七日星光",   emoji: "🌟", type: "streak",        goal: 7,    desc: "連續簽到 7 天" },
+    { id: "quiz20",   name: "最懂寶球",   emoji: "💞", type: "quizCorrect",   goal: 20,   desc: "情侶問答累積答對 20 題" },
+    { id: "memory3",  name: "過目不忘",   emoji: "🃏", type: "memoryPerfect", goal: 3,    desc: "星座翻牌完美通關 3 次" },
+    { id: "whack30",  name: "撈星高手",   emoji: "⭐", type: "whackBest",     goal: 30,   desc: "撈星星單局拿到 30 分" },
+    { id: "thief5",   name: "怪客剋星",   emoji: "🛡️", type: "thiefWins",     goal: 5,    desc: "趕走偷星怪客 5 次" },
+    { id: "rich",     name: "星星富翁",   emoji: "💰", type: "earned",        goal: 1000, desc: "累積獲得 1000 顆星星" },
+    { id: "month",    name: "月亮常客",   emoji: "🌙", type: "streak",        goal: 30,   desc: "連續簽到 30 天" },
+  ],
+
   /* ---------- 偷星怪客 ----------
    * 她打開 App 時有一定機率跳出偷星怪客，要答對一題才能把牠趕走，
    * 答錯的話牠會偷走一些星星。題目預設用下面「情侶問答」的題庫。 */
