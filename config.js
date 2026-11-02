@@ -49,6 +49,40 @@ window.APP_CONFIG = {
     notifySpin: true,              // 她轉輪盤時通知你抽到什麼
   },
 
+  /* ---------- 綿綿樹洞 ----------
+   * 一棵大樹，綿綿可以把心情寫在葉子上放進樹洞（不限次數），你會立刻收到通知。
+   * 葉子越多，越多小動物會被吸引來樹洞旁作伴。 */
+  tree: {
+    enabled: true,                   // 改 false 就不會出現樹洞分頁
+    tabName: "樹洞",                 // 下方分頁顯示的字（2 個字最剛好）
+    title: "綿綿樹洞",
+    intro: "躲進樹洞裡，把心情寫在葉子上放進去，\n球球會在第一時間收到",
+    avatar: "🐑",                    // 躲在樹洞裡的小傢伙
+    notify: true,                    // 放葉子時通知你（走 ntfy）
+    // 心情選項：label 顯示文字、emoji 圖示、color 葉子顏色（通知也會帶上心情）
+    moods: [
+      { key: "happy", label: "開心", emoji: "😊", color: "#8fd694" },
+      { key: "calm",  label: "平靜", emoji: "😌", color: "#ffe08a" },
+      { key: "miss",  label: "想你", emoji: "🥺", color: "#ffb3d9" },
+      { key: "tired", label: "好累", emoji: "😮‍💨", color: "#c9b8ff" },
+      { key: "sad",   label: "難過", emoji: "😢", color: "#8fb8ff" },
+      { key: "angry", label: "生氣", emoji: "😤", color: "#ff9b8a" },
+    ],
+    // 小動物：樹洞裡的葉子累積到 count 片就會出現（最多 10 隻，依順序安排在樹旁不同位置）
+    animals: [
+      { count: 1,  emoji: "🐦", name: "小鳥" },
+      { count: 3,  emoji: "🐿️", name: "松鼠" },
+      { count: 6,  emoji: "🐰", name: "小兔" },
+      { count: 10, emoji: "🦔", name: "刺蝟" },
+      { count: 15, emoji: "🦉", name: "貓頭鷹" },
+      { count: 20, emoji: "🦌", name: "小鹿" },
+      { count: 30, emoji: "🦊", name: "狐狸" },
+      { count: 40, emoji: "🦋", name: "蝴蝶" },
+      { count: 55, emoji: "🐻", name: "小熊" },
+      { count: 70, emoji: "🐼", name: "貓熊" },
+    ],
+  },
+
   /* ---------- 連續簽到 ----------
    * 每天第一次打開 App 會自動簽到送星星，連續天數越多送越多；
    * 中斷一天就從第 1 天重來。rewards 是第 1～7 天各送幾顆，第 8 天以後都送最後一個數字。 */
@@ -69,6 +103,7 @@ window.APP_CONFIG = {
    *   whackBest     撈星星單局最高分
    *   catchBest     接流星單局最高分
    *   wishes        放許願瓶次數
+   *   leaves        放進樹洞的葉子數
    *   redeems       兌換禮物次數
    *   earned        累積獲得的星星總數（只算加的，不算扣的）
    *   birthday      生日當天打開 App（goal 填 1） */
@@ -86,6 +121,7 @@ window.APP_CONFIG = {
     { id: "rich",     name: "星星富翁",   emoji: "💰", type: "earned",        goal: 1000, desc: "累積獲得 1000 顆星星" },
     { id: "month",    name: "月亮常客",   emoji: "🌙", type: "streak",        goal: 30,   desc: "連續簽到 30 天" },
     { id: "catch30",  name: "流星獵人",   emoji: "🌠", type: "catchBest",     goal: 30,   desc: "接流星單局接到 30 分" },
+    { id: "leaf10",   name: "樹洞知己",   emoji: "🍃", type: "leaves",        goal: 10,   desc: "在樹洞放了 10 片心情葉子" },
   ],
 
   /* ---------- 偷星怪客 ----------

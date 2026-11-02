@@ -11,6 +11,7 @@
 2. **小遊戲賺點數**（點數叫「星星」）：撈星星（打地鼠）、星座翻牌（記憶配對）、接流星（canvas，拖動月亮接住掉落的流星）。情侶問答已停用但程式保留。每個遊戲每天有次數上限（目前 1 次）。
 3. **兌換所**：用星星兌換禮物，兌換後變成兌換券，她按「使用」時會通知男友。
 4. **許願瓶**：一天放一次，內容透過 **ntfy**（https://ntfy.sh）推播到男友手機。
+5. **綿綿樹洞**：第 6 個分頁。SVG 大樹＋樹洞，她選心情、寫文字後把葉子放進樹洞（不限次數），ntfy 通知男友；葉子累積到門檻會有 emoji 小動物出現在樹旁。
 
 視覺風格是**夢幻星空**：深藍紫夜空、星星閃爍、流星、金色點綴，字型使用 LXGW WenKai TC。
 
@@ -50,18 +51,20 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
     streak: { count, last: 'YYYY-MM-DD', best },           // 連續簽到
     stats: { thiefWins, thiefLoses, quizCorrect, memoryPerfect, whackBest, catchBest, earned, redeems, birthday },  // 成就用累計
     badges: { [badgeId]: unlockedAt },
+    leaves: [{id, t, mood, text, sent}],                   // 樹洞葉子（sent 由 markSent 透過 leafId 標記）
     welcomed, hideA2hs
   }
   ```
   ⚠️ 她的手機上已經有資料以後，**不要改 `STORE_KEY`，也不要做會破壞舊資料的結構變更**。要新增欄位就在 `fresh()` 加預設值（載入時用 `Object.assign(fresh(), saved)` 合併）。
 - **ntfy**：`sendNtfy()` 用 JSON 格式 POST 到 server 根路徑（`{topic, title, message, tags, priority}`），這樣中文標題才不會遇到 header 編碼問題，也不會觸發 CORS preflight。`notify()` 失敗時會把訊息放進 `S.outbox`，App 回到前景或 `online` 事件時由 `flushOutbox()` 補送。
-- **頁面**：`render.home / wheel / games / shop / wish`，由 `go(page)` 切換。大多是整頁用 innerHTML 重繪。輪盤頁例外：只建一次（`wheelBuilt`），之後只呼叫 `updateWheel()`，這樣 canvas 的旋轉角度才不會被重設。
+- **頁面**：`render.home / wheel / games / shop / wish / tree`（另有無 tab 的 `badges`），由 `go(page)` 切換。大多是整頁用 innerHTML 重繪。輪盤頁例外：只建一次（`wheelBuilt`），之後只呼叫 `updateWheel()`，這樣 canvas 的旋轉角度才不會被重設。
 - **輪盤**：用 canvas 畫，扇形從 12 點鐘方向開始順時針排列；轉動是對 canvas 加 CSS `rotate`。第 `idx` 格停在指針下方的角度是 `360 - (idx+0.5)*seg`。**結果在動畫開始前就先寫入 state**，避免她轉到一半關掉 App 就能重轉。
 - **遊戲**：都註冊在 `GAMES`（`name / emoji / desc / start(body, stat) / max()`）。共用的機制是 `openGame / closeGame / finishGame` 和 `game.{playing, cleanup}`。遊戲途中離開不扣次數，也不給點數，**只有在 `finishGame` 才會 `addPlay`**。要新增遊戲就照同樣的介面加進 `GAMES`，並在 `config.games` 加上對應的設定區塊。
 - **情侶問答目前停用**（`config.games.quiz.enabled: false`），程式碼保留；`games.quiz.questions` 題庫仍是偷星怪客的題目來源，不能刪。怪客答對也會累計 `stats.quizCorrect`。
 - **偷星怪客**：`maybeThief()` 在啟動（非首次）和 `visibilitychange` 回前景時依 `config.thief.chance` 擲骰，受 `maxPerDay`、`minPoints` 限制，遊戲中或已有彈窗時不出現。`thiefAttack(q)` 用 `modal({onOpen})` 顯示一題（有 `thief.image` 時圖示用 `<img>`，答對滑走、答錯彈跳）（題庫預設共用 `games.quiz.questions`，`thief.questions` 可覆蓋），答對只記錄、答錯 `addPoints(-steal)`。
 - **連續簽到**：`checkin()` 在啟動和 `visibilitychange` 回前景時呼叫，一天一次，依 `config.checkin.rewards` 送星星（超過陣列長度就用最後一個值），斷一天從第 1 天重來。剛簽到的那次不叫偷星怪客。
 - **成就徽章**：`config.badges`（缺少時用 `DEFAULT_BADGES`），每個有 `type/goal`，進度由 `badgeProgress()` 算（部分從 `S.stats` 累計，用 `addStat()/maxStat()` 更新；spins/wishes 直接數現有資料）。`checkBadges()` 在輪盤、遊戲結束、兌換、許願、怪客、簽到後呼叫，新解鎖的排進 `badgeQueue`，`showBadgeQueue()` 只在沒彈窗、沒遊戲時顯示（`modal` 關閉與 `closeGame` 都會再觸發）。`render.badges` 是沒有 tab 的頁面（`#p-badges`），從首頁的入口卡進入，用 SVG 畫天蠍座 15 顆星（`SCORPIO`），第 5 顆是心宿二。
+- **綿綿樹洞**：`treeCfg()` 合併 `config.tree`（moods、animals 有預設）；`treeSceneSvg()` 畫場景，小動物依 `animals` 排序後對應 `ANIMAL_SPOTS` 位置；`submitLeaf()` 寫入 `S.leaves`、`flyLeaf()` 飛葉動畫、`notify({leafId})` 推播，新出現的小動物用 modal 宣布。樹洞分頁在啟動時依 `tree.enabled/tabName` 調整。
 - **首頁訊息模板**：`fillTpl()` 會把 `{第幾天}`、`{生日倒數}`、`{名字}` 換成實際值；生日當月且有 `config.birthMonthMessage` 時，「給你的話」卡片改顯示它。
 - **管理模式**：在首頁連點月亮 5 下，輸入 `config.adminCode`。可以加減星星、重置今日次數（含怪客）、測試通知、召喚偷星怪客、清除資料。
 - **特效**：背景星空用 `#sky` canvas，持續播放，分頁隱藏時暫停；慶祝特效 `sparkle()` 畫在 `#fx` canvas 上。

@@ -145,6 +145,13 @@ async def main():
     await pg.wait_for_timeout(2600)
     await pg.screenshot(path=f'{OUT}/18-wish-done.png',full_page=True)
     await clear_modals()
+    # tree：選心情、寫一片葉子放進樹洞
+    await pg.click('.tab[data-page=tree]'); await pg.wait_for_timeout(500)
+    await pg.screenshot(path=f'{OUT}/18b-tree.png',full_page=True)
+    await pg.click('.mood >> nth=2'); await pg.fill('#leafText','今天上班好累，但想到你就開心 🥺')
+    await pg.click('#leafGo'); await pg.wait_for_timeout(2200)
+    await pg.screenshot(path=f'{OUT}/18c-tree-after.png',full_page=True)
+    await clear_modals()
     await pg.click('.tab[data-page=home]'); await pg.wait_for_timeout(400)
     await pg.screenshot(path=f'{OUT}/19-home-after.png',full_page=True)
     # badges page
@@ -154,6 +161,7 @@ async def main():
     st=await pg.evaluate('JSON.parse(localStorage.starbox_v1)')
     print('points',st['points'],'plays',st['plays'],'coupons',[(c['name'],c['used']) for c in st['coupons']],'outbox',len(st['outbox']),'wish sent',[w['sent'] for w in st['wishes']])
     print('streak',st['streak'],'stats',st['stats'],'badges',list(st['badges'].keys()))
+    print('leaves',[(l['mood'],l['sent']) for l in st['leaves']])
     print('ntfy',json.dumps(sent,ensure_ascii=False))
     print('errors',errs)
     await b.close()

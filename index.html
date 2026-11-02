@@ -279,6 +279,30 @@ textarea.wish::placeholder{color:rgba(185,175,219,.6)}
 .wlist li:first-child{border-top:0}
 .wlist .w-date{font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
 .wlist .w-text{margin-top:4px;line-height:1.6;white-space:pre-wrap;word-break:break-word;-webkit-user-select:text;user-select:text}
+/* 綿綿樹洞 */
+.tree-scene{margin:2px -6px 12px}
+.tree-scene svg{width:100%;height:auto;display:block;overflow:visible}
+.tree-scene .animal{font-size:22px;transform-box:fill-box;transform-origin:50% 100%;animation:animalBob 3.2s ease-in-out infinite;cursor:pointer}
+@keyframes animalBob{50%{transform:translateY(-3px)}}
+.tree-scene .firefly{animation:twinkle 2.4s ease-in-out infinite}
+.tree-scene .hole-hit{cursor:pointer}
+.moods{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.mood{display:inline-flex;align-items:center;gap:5px;padding:7px 12px;border-radius:999px;font-size:14px;color:var(--muted);background:rgba(255,255,255,.06);border:1px solid var(--line);transition:transform .15s}
+.mood:active{transform:scale(.96)}
+.mood.on{color:#1a1430;background:var(--c);border-color:var(--c);font-weight:700;box-shadow:0 0 14px color-mix(in srgb,var(--c) 60%,transparent)}
+textarea.leaf-ta{min-height:100px}
+.leaf-fly{position:fixed;z-index:95;width:38px;height:38px;pointer-events:none;transition:transform 1s cubic-bezier(.3,.7,.3,1),opacity 1s ease-in}
+.llist{list-style:none;margin:0;padding:0}
+.llist li{display:flex;gap:12px;padding:12px 0;border-top:1px solid rgba(255,255,255,.07)}
+.llist li:first-child{border-top:0}
+.llist .l-ic{flex:none;width:36px;height:36px;border-radius:50% 0 50% 50%;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--c);transform:rotate(-20deg)}
+.llist .l-ic span{transform:rotate(20deg)}
+.llist .l-body{flex:1;min-width:0}
+.animals{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.ani{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px 8px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:11px;color:var(--muted);text-align:center}
+.ani .a-e{font-size:26px;line-height:1.2}
+.ani.off .a-e{filter:grayscale(1);opacity:.35}
+.ani.on{border-color:rgba(143,214,148,.5);background:rgba(143,214,148,.1);color:var(--text)}
 .wish-preview{background:rgba(255,255,255,.06);border-radius:14px;padding:12px;line-height:1.6;white-space:pre-wrap;word-break:break-word;text-align:left;max-height:200px;overflow:auto}
 
 /* ---------- 底部選單 ---------- */
@@ -286,8 +310,8 @@ textarea.wish::placeholder{color:rgba(185,175,219,.6)}
   background:rgba(12,10,40,.75);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.08);
   padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
 .tabbar .inner{display:flex;width:100%;max-width:480px}
-.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);padding:5px 0;letter-spacing:.5px}
-.tab .ic{font-size:23px;line-height:1.1;filter:grayscale(.7) opacity(.65);transition:transform .2s,filter .2s}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;color:var(--muted);padding:5px 0;letter-spacing:0;white-space:nowrap}
+.tab .ic{font-size:22px;line-height:1.1;filter:grayscale(.7) opacity(.65);transition:transform .2s,filter .2s}
 .tab.active{color:var(--text)}
 .tab.active .ic{filter:none;transform:translateY(-2px) scale(1.1)}
 
@@ -330,6 +354,7 @@ textarea.wish::placeholder{color:rgba(185,175,219,.6)}
     <section class="page" id="p-shop"></section>
     <section class="page" id="p-wish"></section>
     <section class="page" id="p-badges"></section>
+    <section class="page" id="p-tree"></section>
   </main>
 </div>
 
@@ -339,6 +364,7 @@ textarea.wish::placeholder{color:rgba(185,175,219,.6)}
   <button class="tab" data-page="games"><span class="ic">🎮</span>遊戲</button>
   <button class="tab" data-page="shop"><span class="ic">🎁</span>兌換</button>
   <button class="tab" data-page="wish"><span class="ic">💌</span>許願瓶</button>
+  <button class="tab" data-page="tree" id="tabTree"><span class="ic">🌳</span>樹洞</button>
 </div></nav>
 
 <div id="game" class="game hidden">
@@ -397,7 +423,8 @@ const fmtDate = t => { const d = new Date(t); return `${d.getFullYear()}/${d.get
 const fresh = () => ({ points: C.startingPoints || 0, history: [], spins: {}, plays: {}, wishes: [], coupons: [], redeemCount: {}, outbox: [], welcomed: false, hideA2hs: false, thief: {},
   streak: { count: 0, last: '', best: 0 },     // 連續簽到
   stats: {},                                    // 成就用的累計數字（thiefWins、quizCorrect…）
-  badges: {} });                                // 已解鎖成就 { id: 時間 }
+  badges: {},                                   // 已解鎖成就 { id: 時間 }
+  leaves: [] });                                // 樹洞的心情葉子 [{id, t, mood, text, sent}]
 let S;
 try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || {}); } catch (e) { S = fresh(); }
 function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
@@ -430,7 +457,10 @@ async function sendNtfy(msg) {
     return res.ok ? 'ok' : 'fail';
   } catch (e) { return 'fail'; }
 }
-function markSent(msg) { if (msg.wishId) { const w = S.wishes.find(x => x.id === msg.wishId); if (w) w.sent = true; } }
+function markSent(msg) {
+  if (msg.wishId) { const w = S.wishes.find(x => x.id === msg.wishId); if (w) w.sent = true; }
+  if (msg.leafId) { const l = (S.leaves || []).find(x => x.id === msg.leafId); if (l) l.sent = true; }
+}
 async function notify(msg) {
   const r = await sendNtfy(msg);
   if (r === 'ok') markSent(msg);
@@ -449,6 +479,7 @@ async function flushOutbox() {
   }
   save(); flushing = false;
   if (current === 'wish') render.wish();
+  if (current === 'tree') render.tree();
 }
 
 /* ================= 提示與彈窗 ================= */
@@ -1171,6 +1202,7 @@ function badgeProgress(b) {
     case 'streak': return Math.max((S.streak || {}).best || 0, (S.streak || {}).count || 0);
     case 'spins': return Object.keys(S.spins).length;
     case 'wishes': return S.wishes.length;
+    case 'leaves': return (S.leaves || []).length;
     default: return st[b.type] || 0;
   }
 }
@@ -1342,6 +1374,139 @@ async function sendWish() {
   }, 3300);
 }
 
+/* ================= 綿綿樹洞 ================= */
+const DEFAULT_MOODS = [
+  { key: 'happy', label: '開心', emoji: '😊', color: '#8fd694' }, { key: 'calm', label: '平靜', emoji: '😌', color: '#ffe08a' },
+  { key: 'miss', label: '想你', emoji: '🥺', color: '#ffb3d9' }, { key: 'tired', label: '好累', emoji: '😮‍💨', color: '#c9b8ff' },
+  { key: 'sad', label: '難過', emoji: '😢', color: '#8fb8ff' }, { key: 'angry', label: '生氣', emoji: '😤', color: '#ff9b8a' },
+];
+const DEFAULT_ANIMALS = [
+  { count: 1, emoji: '🐦', name: '小鳥' }, { count: 3, emoji: '🐿️', name: '松鼠' }, { count: 6, emoji: '🐰', name: '小兔' },
+  { count: 10, emoji: '🦔', name: '刺蝟' }, { count: 15, emoji: '🦉', name: '貓頭鷹' }, { count: 20, emoji: '🦌', name: '小鹿' },
+  { count: 30, emoji: '🦊', name: '狐狸' }, { count: 40, emoji: '🦋', name: '蝴蝶' }, { count: 55, emoji: '🐻', name: '小熊' }, { count: 70, emoji: '🐼', name: '貓熊' },
+];
+// 小動物在場景裡的位置（SVG 座標，依 animals 的順序使用）
+const ANIMAL_SPOTS = [[114, 136], [150, 236], [92, 248], [228, 244], [254, 110], [288, 218], [46, 254], [182, 34], [330, 250], [180, 150]];
+function treeCfg() {
+  const t = Object.assign({ enabled: true, tabName: '樹洞', title: '綿綿樹洞', intro: '躲進樹洞裡，把心情寫在葉子上放進去', avatar: '🐑', notify: true }, C.tree || {});
+  t.moods = (Array.isArray(t.moods) && t.moods.length ? t.moods : DEFAULT_MOODS).filter(m => m && m.key);
+  t.animals = (Array.isArray(t.animals) && t.animals.length ? t.animals : DEFAULT_ANIMALS).filter(a => a && a.emoji).slice(0, ANIMAL_SPOTS.length).sort((a, b) => (+a.count || 0) - (+b.count || 0));
+  return t;
+}
+const moodOf = key => treeCfg().moods.find(m => m.key === key) || { key, label: '', emoji: '🍃', color: '#8fd694' };
+const animalsFor = n => treeCfg().animals.filter(a => n >= (+a.count || 0));
+const LEAF_SVG = (c, extra = '') => `<svg viewBox="0 0 36 36" ${extra}><path d="M18 2C30 8 34 22 18 34C2 22 6 8 18 2Z" fill="${c}"/><path d="M18 7V30" stroke="rgba(0,0,0,.28)" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+let leafMood = null, treeShowAll = false;
+function treeSceneSvg() {
+  const t = treeCfg(), n = (S.leaves || []).length, animals = animalsFor(n);
+  const pile = (S.leaves || []).slice(0, 7);
+  const fire = [[60, 70], [300, 60], [40, 150], [320, 130], [230, 170]];
+  return `<svg viewBox="0 0 360 272" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="gCan" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#4f9a63"/><stop offset="1" stop-color="#1f4a33"/></radialGradient>
+      <radialGradient id="gCan2" cx="45%" cy="35%" r="70%"><stop offset="0" stop-color="#3f8554"/><stop offset="1" stop-color="#193d2a"/></radialGradient>
+      <linearGradient id="gTrunk" x1="0" x2="1"><stop offset="0" stop-color="#3b2416"/><stop offset=".5" stop-color="#6b4630"/><stop offset="1" stop-color="#3b2416"/></linearGradient>
+      <radialGradient id="gHole" cx="50%" cy="60%" r="60%"><stop offset="0" stop-color="#241410"/><stop offset="1" stop-color="#0d0705"/></radialGradient>
+      <radialGradient id="gPond" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#8fe3ff" stop-opacity=".55"/><stop offset="1" stop-color="#2b3f94" stop-opacity=".7"/></radialGradient>
+      <linearGradient id="gGround" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a5a3c"/><stop offset="1" stop-color="#14301f"/></linearGradient>
+    </defs>
+    <ellipse cx="180" cy="300" rx="270" ry="66" fill="url(#gGround)"/>
+    <ellipse cx="292" cy="240" rx="48" ry="13" fill="url(#gPond)"/>
+    <ellipse cx="292" cy="240" rx="48" ry="13" fill="none" stroke="rgba(143,227,255,.35)" stroke-width="1"/>
+    <path d="M300 236q6-3 14 0" stroke="rgba(255,255,255,.35)" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    <path d="M150 250 C152 200 158 160 166 132 L194 132 C202 160 208 200 210 250 L232 262 L128 262 Z" fill="url(#gTrunk)"/>
+    <path d="M166 134 C176 150 178 170 180 200" stroke="rgba(0,0,0,.25)" stroke-width="2" fill="none"/>
+    <circle cx="118" cy="122" r="52" fill="url(#gCan2)"/>
+    <circle cx="246" cy="118" r="56" fill="url(#gCan2)"/>
+    <circle cx="180" cy="62" r="50" fill="url(#gCan2)"/>
+    <circle cx="180" cy="100" r="66" fill="url(#gCan)"/>
+    <circle cx="142" cy="78" r="34" fill="url(#gCan)" opacity=".9"/>
+    <circle cx="226" cy="74" r="34" fill="url(#gCan)" opacity=".9"/>
+    ${[[150, 60], [205, 50], [120, 110], [240, 104], [180, 125], [98, 140], [262, 140]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.6" fill="#ffd98a" opacity=".8"/>`).join('')}
+    ${fire.map(([x, y], i) => `<circle class="firefly" cx="${x}" cy="${y}" r="2" fill="#ffd98a" style="animation-delay:${i * .5}s"/>`).join('')}
+    <g class="hole-hit" id="holeTarget">
+      <ellipse cx="180" cy="192" rx="27" ry="33" fill="#2a1a12"/>
+      <ellipse cx="180" cy="193" rx="22" ry="28" fill="url(#gHole)"/>
+      ${pile.map((l, i) => { const m = moodOf(l.mood); const x = 168 + (i % 4) * 8 + (i > 3 ? 4 : 0), y = 212 - Math.floor(i / 4) * 6; return `<g transform="translate(${x} ${y}) rotate(${(i * 37) % 60 - 30}) scale(.32)">${LEAF_SVG(m.color, 'x="-18" y="-18" width="36" height="36"')}</g>`; }).join('')}
+      <text x="180" y="${pile.length ? 188 : 194}" text-anchor="middle" font-size="22">${esc(t.avatar || '🐑')}</text>
+    </g>
+    <g><rect x="160" y="228" width="40" height="16" rx="8" fill="rgba(7,7,32,.55)"/><text x="180" y="240" text-anchor="middle" font-size="10" fill="#ffd98a">🍃 ${n}</text></g>
+    ${animals.map((a, i) => { const [x, y] = ANIMAL_SPOTS[i] || ANIMAL_SPOTS[ANIMAL_SPOTS.length - 1]; return `<text class="animal" data-a="${i}" x="${x}" y="${y}" text-anchor="middle" style="animation-delay:${(i * .7) % 3}s" font-size="${i === 5 || i === 8 ? 26 : 22}">${esc(a.emoji)}</text>`; }).join('')}
+  </svg>`;
+}
+render.tree = () => {
+  const t = treeCfg(), leaves = (S.leaves || []), n = leaves.length;
+  if (!leafMood || !t.moods.some(m => m.key === leafMood)) leafMood = t.moods[0] ? t.moods[0].key : null;
+  const shown = treeShowAll ? leaves : leaves.slice(0, 5);
+  const unlocked = animalsFor(n);
+  $('#p-tree').innerHTML = `<h2 class="ptitle">${esc(t.title)}</h2>
+    <p class="muted center small">${nl2br(fillTpl(t.intro))}</p>
+    <div class="tree-scene">${treeSceneSvg()}</div>
+    <div class="card"><h4>寫一片葉子</h4>
+      <div class="moods">${t.moods.map(m => `<button class="mood ${m.key === leafMood ? 'on' : ''}" data-k="${esc(m.key)}" style="--c:${esc(m.color || '#8fd694')}">${esc(m.emoji || '')} ${esc(m.label || '')}</button>`).join('')}</div>
+      <textarea class="wish leaf-ta" id="leafText" maxlength="500" placeholder="今天的心情是…&#10;想說什麼都可以，沒有次數限制"></textarea>
+      <div class="row"><span class="muted small" id="lc">0 / 500</span><button class="btn" id="leafGo">放進樹洞 🍃</button></div>
+    </div>
+    <div class="card" id="leafList"><h4>樹洞裡的葉子 <span class="muted small">（${n} 片）</span></h4>
+      ${n ? `<ul class="llist">${shown.map(l => { const m = moodOf(l.mood); return `<li><div class="l-ic" style="--c:${esc(m.color)}"><span>${esc(m.emoji)}</span></div><div class="l-body"><div class="w-date"><span>${fmtTime(l.t)}${m.label ? ` · ${esc(m.label)}` : ''}</span><span>${l.sent ? '✓ 已送達' : hasTopic() ? '⏳ 有網路時會自動送出' : ''}</span></div><div class="w-text">${esc(l.text)}</div></div></li>`; }).join('')}</ul>
+        ${n > 5 ? `<div class="center" style="margin-top:10px"><button class="btn ghost" id="leafMore">${treeShowAll ? '收起來' : `看全部 ${n} 片`}</button></div>` : ''}` : '<div class="empty">樹洞還是空的，寫下第一片葉子吧 🍃</div>'}
+    </div>
+    <div class="card"><h4>來作伴的小動物 <span class="muted small">（${unlocked.length} / ${t.animals.length}）</span></h4>
+      <div class="animals">${t.animals.map(a => { const on = n >= (+a.count || 0); return `<div class="ani ${on ? 'on' : 'off'}"><div class="a-e">${esc(a.emoji)}</div><div>${on ? esc(a.name || '') : `${+a.count || 0} 片`}</div></div>`; }).join('')}</div>
+      <p class="muted small center" style="margin-top:10px">葉子越多，越多小動物會來樹洞旁休息、喝水</p>
+    </div>`;
+  const ta = $('#leafText');
+  ta.oninput = () => { $('#lc').textContent = `${ta.value.length} / 500`; };
+  $('#leafGo').onclick = submitLeaf;
+  $$('.mood', $('#p-tree')).forEach(b => b.onclick = () => { leafMood = b.dataset.k; $$('.mood', $('#p-tree')).forEach(x => x.classList.toggle('on', x === b)); });
+  const more = $('#leafMore'); if (more) more.onclick = () => { treeShowAll = !treeShowAll; render.tree(); };
+  $('#holeTarget').onclick = () => $('#leafList').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $$('.animal', $('#p-tree')).forEach(el => el.onclick = () => { const a = unlocked[+el.dataset.a]; if (a) toast(`${a.emoji} ${a.name || ''}在樹洞旁休息中`); });
+};
+// 葉子從畫面下方飛進樹洞
+function flyLeaf(color) {
+  const hole = $('#holeTarget'); if (!hole) return;
+  const b = hole.getBoundingClientRect();
+  const sx = innerWidth / 2 - 19, sy = innerHeight * .78;
+  const el = document.createElement('div'); el.className = 'leaf-fly'; el.innerHTML = LEAF_SVG(color);
+  el.style.left = sx + 'px'; el.style.top = sy + 'px';
+  document.body.appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.style.transform = `translate(${b.left + b.width / 2 - 19 - sx}px, ${b.top + b.height / 2 - 19 - sy}px) rotate(540deg) scale(.35)`;
+    el.style.opacity = '0';
+  }));
+  setTimeout(() => el.remove(), 1100);
+}
+async function submitLeaf() {
+  const ta = $('#leafText'); if (!ta) return;
+  const text = ta.value.trim();
+  if (!text) { toast('先寫點什麼吧 ✍️'); ta.focus(); return; }
+  const t = treeCfg(), m = moodOf(leafMood);
+  if (!S.leaves) S.leaves = [];
+  const before = animalsFor(S.leaves.length).length;
+  const leaf = { id: uid(), t: Date.now(), mood: m.key, text, sent: false };
+  S.leaves.unshift(leaf); log('🍃', `在樹洞放了一片${m.label ? m.label + '的' : ''}葉子`); save();
+  ta.blur(); ta.disabled = true; $('#leafGo').disabled = true;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  setTimeout(() => flyLeaf(m.color), 350);
+  const sending = t.notify !== false
+    ? notify({ title: `🍃 ${C.herName} 的樹洞葉子${m.emoji ? ' ' + m.emoji : ''}`, message: `${m.label ? `心情：${m.emoji || ''} ${m.label}\n` : ''}${text}\n\n— ${fmtTime(leaf.t)}`, tags: ['leaves'], priority: 4, leafId: leaf.id })
+    : Promise.resolve('skip');
+  setTimeout(async () => {
+    sparkle(innerWidth / 2, 220, 50);
+    if (current === 'tree') render.tree();
+    toast('葉子放進樹洞了 🍃');
+    await sending;
+    if (current === 'tree') render.tree();
+    const now = animalsFor(S.leaves.length);
+    for (const a of now.slice(before)) {
+      sparkle(innerWidth / 2, 240, 90);
+      await modal({ icon: esc(a.emoji), title: `${esc(a.name || '小動物')}來了！`, html: `<p>樹洞裡的葉子越來越多，<br>${esc(a.name || '牠')}被吸引過來，在樹旁休息了</p>`, buttons: [{ text: '歡迎歡迎 🌿', primary: true }] });
+    }
+    checkBadges();
+  }, 1400);
+}
+
 /* ================= 管理模式（連點月亮 5 下） ================= */
 let moonTaps = 0, moonTimer;
 function moonTap(e) {
@@ -1386,6 +1551,7 @@ async function admin() {
 
 /* ================= 啟動 ================= */
 document.title = C.appTitle || document.title;
+{ const t = treeCfg(), tab = $('#tabTree'); if (tab) { if (t.enabled === false) tab.remove(); else tab.lastChild.textContent = t.tabName || '樹洞'; } }
 $('#brand').innerHTML = `<span>✦</span> ${esc(C.appTitle || '星星小宇宙')}`;
 $('#ptsEmoji').textContent = PE;
 renderPoints();
