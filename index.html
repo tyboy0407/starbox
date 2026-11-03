@@ -138,6 +138,31 @@ h2,h3,h4,p{margin:0}
 .t-st.done{background:rgba(123,224,168,.18);color:var(--ok)}
 .letter p{line-height:1.8;font-size:16px}
 .letter .sign{text-align:right;color:var(--muted);margin-top:10px}
+/* 樹洞回信 */
+.pick-list{max-height:46vh;overflow:auto;text-align:left;-webkit-overflow-scrolling:touch}
+.pick{display:block;width:100%;text-align:left;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid var(--line);margin-bottom:8px;line-height:1.5}
+.pick:active{background:rgba(255,255,255,.12)}
+.pick small{display:block;color:var(--muted);font-size:12px}
+.pick-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.pick-grid .pick{text-align:center;padding:10px 2px 8px;font-size:26px;line-height:1.2;margin:0}
+.pick-grid .pick small{font-size:11px;margin-top:2px}
+.pick-grid .pick.dim{opacity:.45}
+.courier{font-size:58px;display:inline-block;animation:courierHop .9s ease-in-out infinite}
+@keyframes courierHop{50%{transform:translateY(-8px) rotate(-6deg)}}
+.quote{background:rgba(255,255,255,.06);border-left:3px solid var(--violet);border-radius:10px;padding:10px 12px;text-align:left;font-size:14px;color:var(--muted);white-space:pre-wrap;word-break:break-word;max-height:110px;overflow:auto}
+.letter-text{text-align:left;line-height:1.8;white-space:pre-wrap;word-break:break-word;margin-top:10px;max-height:240px;overflow:auto;-webkit-user-select:text;user-select:text}
+.reply{margin-top:8px;background:rgba(143,214,148,.1);border:1px solid rgba(143,214,148,.35);border-radius:12px;padding:8px 10px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.reply b{display:block;font-size:12px;color:var(--ok);margin-bottom:2px}
+/* 星圖全亮 */
+.cmap.alive .cstar.on .core{animation:starPulse 2.2s ease-in-out infinite}
+.cmap.alive .cstar.on .glow{animation:twinkle 1.6s ease-in-out infinite}
+.cmap.alive .cline.on{stroke-dasharray:3 2.5;animation:lineFlow 1.4s linear infinite}
+.cmap.alive svg{animation:skySway 7s ease-in-out infinite}
+@keyframes starPulse{50%{transform:scale(1.25)}}
+@keyframes lineFlow{to{stroke-dashoffset:-11}}
+@keyframes skySway{50%{transform:rotate(2deg) scale(1.02)}}
+.cmap.alive .cstar .core{transform-box:fill-box;transform-origin:center}
+.cmap.mini{max-width:220px;margin:0 auto 6px}
 .hist{list-style:none;margin:0;padding:0}
 .hist li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.06);font-size:14px}
 .hist li:first-child{border-top:0}
@@ -443,7 +468,9 @@ const fresh = () => ({ points: C.startingPoints || 0, history: [], spins: {}, pl
   streak: { count: 0, last: '', best: 0 },     // 連續簽到
   stats: {},                                    // 成就用的累計數字（thiefWins、quizCorrect…）
   badges: {},                                   // 已解鎖成就 { id: 時間 }
-  leaves: [] });                                // 樹洞的心情葉子 [{id, t, mood, text, sent}]
+  leaves: [],                                   // 樹洞的心情葉子 [{id, t, mood, text, sent, replied}]
+  replies: [],                                  // 男友的回信 [{id, leafId, animal:{emoji,name}, text, t, delivered}]
+  skyComplete: 0 });                            // 星圖全亮彩蛋已觸發的時間
 let S;
 try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || {}); } catch (e) { S = fresh(); }
 function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
@@ -529,7 +556,7 @@ function modal({ icon = '', title = '', html = '', buttons = [{ text: '好', pri
       if (e.target === bg && dismiss) close(-1);
     });
     const inp = $('input', bg); if (inp) setTimeout(() => inp.focus(), 250);
-    if (onOpen) onOpen(bg);
+    if (onOpen) onOpen(bg, close);
   });
 }
 
@@ -1240,7 +1267,8 @@ function checkBadges() {
   showBadgeQueue();
 }
 async function showBadgeQueue() {
-  if (showingBadge || !badgeQueue.length || game.key || $('.modal-bg:not(.out)')) return;
+  if (showingBadge || game.key || $('.modal-bg:not(.out)')) return;
+  if (!badgeQueue.length) return maybeSkyComplete();
   showingBadge = true;
   while (badgeQueue.length) {
     const b = badgeQueue.shift();
@@ -1254,11 +1282,12 @@ async function showBadgeQueue() {
   }
   showingBadge = false;
   if (render[current] && !game.key) render[current]();
+  maybeSkyComplete();
 }
-render.badges = () => {
-  const list = badgeList(), done = list.filter(badgeDone).length, st = SCORPIO.stars;
+function skySvg() {
+  const list = badgeList(), st = SCORPIO.stars;
   const lit = i => !!(list[i] && badgeDone(list[i]));
-  const svg = `<svg viewBox="-6 2 112 108" xmlns="http://www.w3.org/2000/svg">
+  return `<svg viewBox="-6 2 112 108" xmlns="http://www.w3.org/2000/svg">
     ${SCORPIO.lines.map(([a, b]) => `<line class="cline ${lit(a) && lit(b) ? 'on' : ''}" x1="${st[a][0]}" y1="${st[a][1]}" x2="${st[b][0]}" y2="${st[b][1]}"/>`).join('')}
     ${st.map(([x, y], i) => {
       const b = list[i];
@@ -1267,10 +1296,33 @@ render.badges = () => {
       return `<g class="cstar ${on ? 'on' : 'off'}" data-b="${i}">${on ? `<circle class="glow" cx="${x}" cy="${y}" r="${r + 3.2}"/>` : ''}<circle class="core" cx="${x}" cy="${y}" r="${r}"/><text x="${x}" y="${y}" dy="0.36em" text-anchor="middle" font-size="${on ? (i === 4 ? 6.4 : 5.4) : 3.6}">${on ? esc(b.emoji || '⭐') : '✦'}</text></g>`;
     }).join('')}
   </svg>`;
+}
+const skyCfg = () => Object.assign({ title: '給點亮整片星空的你', text: '你把整片星空都點亮了 ✨', reward: '萬能願望券', rewardEmoji: '👑' }, C.skyComplete || {});
+const skyAllLit = () => { const l = badgeList(); return l.length > 0 && l.every(badgeDone); };
+// 14 顆星全亮：星圖動起來、送信、送兌換券（只觸發一次）
+async function maybeSkyComplete() {
+  if (S.skyComplete || !skyAllLit() || game.key || $('.modal-bg:not(.out)')) return;
+  const cfg = skyCfg();
+  S.skyComplete = Date.now();
+  if (cfg.reward) S.coupons.unshift({ id: uid(), name: cfg.reward, emoji: cfg.rewardEmoji || '👑', source: '成就', t: Date.now(), used: false });
+  log('🌌', `點亮整片星空${cfg.reward ? `，獲得「${cfg.reward}」` : ''}`); save();
+  sparkle(innerWidth / 2, innerHeight * .25, 170);
+  setTimeout(() => sparkle(innerWidth * .3, innerHeight * .4, 90), 500);
+  setTimeout(() => sparkle(innerWidth * .7, innerHeight * .4, 90), 900);
+  await modal({
+    title: '🌌 整片星空都亮了！', dismiss: false,
+    html: `<div class="cmap alive mini">${skySvg()}</div><h3 class="gold" style="font-size:18px;margin:6px 0">${esc(cfg.title)}</h3><div class="letter-text">${nl2br(fillTpl(cfg.text))}</div>${cfg.reward ? `<p class="gold" style="margin-top:12px">${esc(cfg.rewardEmoji || '👑')} 獲得「${esc(cfg.reward)}」，已放進我的兌換券</p>` : ''}`,
+    buttons: [{ text: '收下 ✨', primary: true }]
+  });
+  if (render[current] && !game.key) render[current]();
+}
+render.badges = () => {
+  const list = badgeList(), done = list.filter(badgeDone).length, all = skyAllLit(), cfg = skyCfg();
   $('#p-badges').innerHTML = `<button class="back" id="bBack">‹ 回首頁</button>
     <h2 class="ptitle">天蠍座成就星圖</h2>
-    <p class="muted center small">每達成一個成就，星圖就會亮起一顆星<br>已點亮 <b class="gold">${done} / ${list.length}</b> 顆</p>
-    <div class="cmap">${svg}</div>
+    <p class="muted center small">${all ? '✨ 整片星空都被你點亮了 ✨' : '每達成一個成就，星圖就會亮起一顆星'}<br>已點亮 <b class="gold">${done} / ${list.length}</b> 顆</p>
+    <div class="cmap ${all ? 'alive' : ''}">${skySvg()}</div>
+    ${S.skyComplete ? `<div class="card letter"><h4>🌌 ${esc(cfg.title)}</h4><div class="letter-text" style="margin-top:0;max-height:none">${nl2br(fillTpl(cfg.text))}</div><div class="sign">— ${esc(C.fromName)}</div></div>` : ''}
     <div class="card"><h4>成就列表</h4><ul class="blist">${list.map(b => {
       const g = +b.goal || 1, p = Math.min(badgeProgress(b), g), on = badgeDone(b);
       return `<li class="${on ? 'on' : 'off'}"><div class="b-ic">${esc(b.emoji || '⭐')}</div><div class="b-txt"><div class="b-name">${esc(b.name)}</div><div class="b-desc">${esc(b.desc || '')}</div>${on ? `<div class="b-desc gold">✓ ${fmtDate(S.badges[b.id])} 點亮</div>` : `<div class="b-bar"><div style="width:${p / g * 100}%"></div></div>`}</div>${on ? '' : `<div class="b-pct">${p} / ${g}</div>`}</li>`;
@@ -1548,7 +1600,7 @@ render.tree = () => {
       <div class="row"><span class="muted small" id="lc">0 / 500</span><button class="btn" id="leafGo">放進樹洞 🍃</button></div>
     </div>
     <div class="card" id="leafList"><h4>樹洞裡的葉子 <span class="muted small">（${n} 片）</span></h4>
-      ${n ? `<ul class="llist">${shown.map(l => { const m = moodOf(l.mood); return `<li><div class="l-ic" style="--c:${esc(m.color)}"><span>${esc(m.emoji)}</span></div><div class="l-body"><div class="w-date"><span>${fmtTime(l.t)}${m.label ? ` · ${esc(m.label)}` : ''}</span><span>${l.sent ? '✓ 已送達' : hasTopic() ? '⏳ 有網路時會自動送出' : ''}</span></div><div class="w-text">${esc(l.text)}</div></div></li>`; }).join('')}</ul>
+      ${n ? `<ul class="llist">${shown.map(l => { const m = moodOf(l.mood); return `<li><div class="l-ic" style="--c:${esc(m.color)}"><span>${esc(m.emoji)}</span></div><div class="l-body"><div class="w-date"><span>${fmtTime(l.t)}${m.label ? ` · ${esc(m.label)}` : ''}</span><span>${l.sent ? '✓ 已送達' : hasTopic() ? '⏳ 有網路時會自動送出' : ''}</span></div><div class="w-text">${esc(l.text)}</div>${replyHtml(l)}</div></li>`; }).join('')}</ul>
         ${n > 5 ? `<div class="center" style="margin-top:10px"><button class="btn ghost" id="leafMore">${treeShowAll ? '收起來' : `看全部 ${n} 片`}</button></div>` : ''}` : '<div class="empty">樹洞還是空的，寫下第一片葉子吧 🍃</div>'}
     </div>
     <div class="card"><h4>來作伴的小動物 <span class="muted small">（${unlocked.length} / ${t.animals.length}）</span></h4>
@@ -1607,6 +1659,64 @@ async function submitLeaf() {
   }, 1400);
 }
 
+/* ================= 樹洞回信（男友在管理模式派小動物送信） ================= */
+const repliesOf = leafId => (S.replies || []).filter(r => r.leafId === leafId && r.delivered);
+function replyHtml(l) {
+  return repliesOf(l.id).map(r => `<div class="reply"><b>${esc(r.animal.emoji)} ${esc(r.animal.name || '小動物')}帶來${esc(C.fromName)}的回信 · ${fmtTime(r.t)}</b>${esc(r.text)}</div>`).join('');
+}
+async function adminReply() {
+  const leaves = (S.leaves || []);
+  if (!leaves.length) return toast('樹洞裡還沒有葉子');
+  const t = treeCfg(), n = leaves.length;
+  // 1. 選葉子
+  let leaf = null;
+  await modal({
+    title: '📨 要回哪一片葉子？',
+    html: `<div class="pick-list">${leaves.slice(0, 30).map(l => { const m = moodOf(l.mood); return `<button class="pick" data-id="${esc(l.id)}">${esc(m.emoji)} ${esc(l.text.length > 46 ? l.text.slice(0, 46) + '…' : l.text)}<small>${fmtTime(l.t)}${m.label ? ' · ' + esc(m.label) : ''}${l.replied ? ' · ✓ 回過' : ''}</small></button>`; }).join('')}</div>`,
+    buttons: [{ text: '取消' }],
+    onOpen(bg, close) { $$('.pick', bg).forEach(b => b.onclick = () => { leaf = leaves.find(x => x.id === b.dataset.id); close(1); }); }
+  });
+  if (!leaf) return;
+  // 2. 選小動物
+  let animal = null;
+  await modal({
+    title: '🐾 派哪隻小動物去送信？',
+    html: `<div class="pick-grid">${t.animals.map((a, i) => `<button class="pick ${n >= (+a.count || 0) ? '' : 'dim'}" data-i="${i}">${esc(a.emoji)}<small>${esc(a.name || '')}</small></button>`).join('')}</div><p class="muted small" style="margin-top:8px">暗的是她還沒遇過的動物，也可以派</p>`,
+    buttons: [{ text: '取消' }],
+    onOpen(bg, close) { $$('.pick', bg).forEach(b => b.onclick = () => { animal = t.animals[+b.dataset.i]; close(1); }); }
+  });
+  if (!animal) return;
+  // 3. 寫信
+  const r = await modal({
+    title: `✍️ 寫給${esc(C.herName)}的信`,
+    html: `<div class="quote">${esc(moodOf(leaf.mood).emoji)} ${esc(leaf.text)}</div><textarea class="wish leaf-ta" name="text" maxlength="1000" placeholder="寫下你想回她的話…" style="margin-top:10px"></textarea>`,
+    buttons: [{ text: '取消' }, { text: `派 ${esc(animal.emoji)} 出發`, primary: true }]
+  });
+  const text = String(r.values.text || '').trim();
+  if (r.i !== 1 || !text) return;
+  if (!S.replies) S.replies = [];
+  S.replies.push({ id: uid(), leafId: leaf.id, animal: { emoji: animal.emoji, name: animal.name || '' }, text, t: Date.now(), delivered: false });
+  leaf.replied = true; save();
+  toast(`${animal.emoji} 已經出發，她下次打開 App 就會收到`);
+}
+// 她打開 App 時：有未送達的回信就讓小動物叼信出現；回傳 true 代表有顯示
+async function deliverReplies() {
+  const pending = (S.replies || []).filter(r => !r.delivered);
+  if (!pending.length || !S.welcomed || game.key || $('.modal-bg:not(.out)')) return false;
+  for (const r of pending) {
+    const leaf = (S.leaves || []).find(l => l.id === r.leafId);
+    sparkle(innerWidth / 2, innerHeight * .3, 80);
+    await modal({
+      icon: `<span class="courier">${esc(r.animal.emoji)}</span> 💌`, title: `${esc(r.animal.name || '小動物')}叼著一封信來找你`, dismiss: false,
+      html: `${leaf ? `<p class="muted small" style="margin-bottom:6px">你寫的葉子：</p><div class="quote">${esc(moodOf(leaf.mood).emoji)} ${esc(leaf.text)}</div>` : ''}<p class="muted small" style="margin:10px 0 0">${esc(C.fromName)}的回信：</p><div class="letter-text">${nl2br(r.text)}</div>`,
+      buttons: [{ text: '收下 💌', primary: true }]
+    });
+    r.delivered = true; log('💌', `${r.animal.name || '小動物'}送來${C.fromName}的回信`); save();
+  }
+  if (render[current] && !game.key) render[current]();
+  return true;
+}
+
 /* ================= 管理模式（連點月亮 5 下） ================= */
 let moonTaps = 0, moonTimer;
 function moonTap(e) {
@@ -1622,7 +1732,7 @@ async function admin() {
     title: '🛠 管理模式',
     html: `<p class="left muted small">ntfy：${hasTopic() ? `已設定（${esc(C.ntfy.topic)}）` : '⚠️ 還沒設定 topic，收不到通知'}<br>等待送出的通知：${S.outbox.length} 則</p>
            <input class="input" name="pts" type="number" inputmode="numeric" placeholder="加幾顆${PN}？（負數是扣）">`,
-    buttons: [{ text: `加 / 扣${PN}`, primary: true }, { text: '重置今天的次數' }, { text: '測試通知' }, { text: '召喚偷星怪客' }, { text: '清除全部資料', danger: true }, { text: '關閉' }]
+    buttons: [{ text: `加 / 扣${PN}`, primary: true }, { text: '重置今天的次數' }, { text: '測試通知' }, { text: '召喚偷星怪客' }, { text: '回信給樹洞 📨' }, { text: '清除全部資料', danger: true }, { text: '關閉' }]
   });
   if (b.i === 0) {
     const n = parseInt(b.values.pts, 10);
@@ -1643,6 +1753,8 @@ async function admin() {
     if (!pool.length) return toast('還沒有題目，怪客出不來');
     return thiefAttack(pool[Math.floor(Math.random() * pool.length)]);
   } else if (b.i === 4) {
+    return adminReply();
+  } else if (b.i === 5) {
     const c = await modal({ icon: '⚠️', title: '確定清除全部資料？', html: `<p>${PN}、兌換券、許願紀錄都會歸零，沒辦法復原。</p>`, buttons: [{ text: '取消' }, { text: '清除', danger: true }] });
     if (c.i === 1) { try { localStorage.removeItem(STORE_KEY); } catch (e) {} location.reload(); return; }
   }
@@ -1669,6 +1781,7 @@ document.addEventListener('visibilitychange', async () => {
   if (dayKey() !== lastDay) { lastDay = dayKey(); if (!game.key && render[current]) render[current](); }
   if (birthdayDays() === 0) maxStat('birthday', 1);
   if (await checkin()) return;   // 剛簽到就先不叫怪客出來
+  if (await deliverReplies()) return;
   maybeThief();
 });
 addEventListener('online', flushOutbox);
@@ -1689,8 +1802,9 @@ flushOutbox();
   }
   if (birthdayDays() === 0) maxStat('birthday', 1);
   const signed = await checkin();
+  const delivered = await deliverReplies();
   checkBadges();
-  if (!firstOpen && !signed) setTimeout(maybeThief, 900);   // 第一次打開或剛簽到就不叫怪客
+  if (!firstOpen && !signed && !delivered) setTimeout(maybeThief, 900);   // 第一次打開或剛簽到就不叫怪客
 })();
 })();
 </script>

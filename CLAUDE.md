@@ -51,7 +51,9 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
     streak: { count, last: 'YYYY-MM-DD', best },           // 連續簽到
     stats: { thiefWins, thiefLoses, quizCorrect, memoryPerfect, whackBest, catchBest, earned, redeems, birthday },  // 成就用累計
     badges: { [badgeId]: unlockedAt },
-    leaves: [{id, t, mood, text, sent}],                   // 樹洞葉子（sent 由 markSent 透過 leafId 標記）
+    leaves: [{id, t, mood, text, sent, replied}],          // 樹洞葉子（sent 由 markSent 透過 leafId 標記）
+    replies: [{id, leafId, animal:{emoji,name}, text, t, delivered}],  // 男友在管理模式寫的回信
+    skyComplete: 0,                                        // 星圖全亮彩蛋觸發時間（只送一次）
     welcomed, hideA2hs
   }
   ```
@@ -65,8 +67,10 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
 - **連續簽到**：`checkin()` 在啟動和 `visibilitychange` 回前景時呼叫，一天一次，依 `config.checkin.rewards` 送星星（超過陣列長度就用最後一個值），斷一天從第 1 天重來。剛簽到的那次不叫偷星怪客。
 - **成就徽章**：`config.badges`（缺少時用 `DEFAULT_BADGES`），每個有 `type/goal`，進度由 `badgeProgress()` 算（部分從 `S.stats` 累計，用 `addStat()/maxStat()` 更新；spins/wishes 直接數現有資料）。`checkBadges()` 在輪盤、遊戲結束、兌換、許願、怪客、簽到後呼叫，新解鎖的排進 `badgeQueue`，`showBadgeQueue()` 只在沒彈窗、沒遊戲時顯示（`modal` 關閉與 `closeGame` 都會再觸發）。`render.badges` 是沒有 tab 的頁面（`#p-badges`），從首頁的入口卡進入，用 SVG 畫天蠍座 15 顆星（`SCORPIO`），第 5 顆是心宿二。
 - **綿綿樹洞**：`treeCfg()` 合併 `config.tree`（moods、animals 有預設）；`treeSceneSvg()` 畫場景，小動物依 `animals` 排序後對應 `ANIMAL_SPOTS` 位置；`submitLeaf()` 寫入 `S.leaves`、`flyLeaf()` 飛葉動畫、`notify({leafId})` 推播，新出現的小動物用 modal 宣布。樹洞分頁在啟動時依 `tree.enabled/tabName` 調整。
+- **樹洞回信**：男友在**她的手機**進管理模式按「回信給樹洞」→ `adminReply()` 三步：選葉子、選小動物、寫信（`modal` 的 `onOpen(bg, close)` 讓列表按鈕可以直接關閉彈窗），存進 `S.replies`。`deliverReplies()` 在啟動與回前景時（簽到之後、怪客之前）把未送達的回信用小動物叼信的彈窗顯示，標記 `delivered`，樹洞列表會在該葉子下方顯示回信。
+- **星圖全亮彩蛋**：`maybeSkyComplete()` 由 `showBadgeQueue` 在佇列清空時呼叫；全部成就解鎖且 `S.skyComplete` 未設時，送 `config.skyComplete.reward` 兌換券（source `成就`）、顯示信件彈窗（`skySvg()` 加 `.cmap.alive` 動畫）。成就頁全亮時也會套 `alive` 並顯示信件卡。
 - **首頁訊息模板**：`fillTpl()` 會把 `{第幾天}`、`{生日倒數}`、`{名字}` 換成實際值；生日當月且有 `config.birthMonthMessage` 時，「給你的話」卡片改顯示它。
-- **管理模式**：在首頁連點月亮 5 下，輸入 `config.adminCode`。可以加減星星、重置今日次數（含怪客）、測試通知、召喚偷星怪客、清除資料。
+- **管理模式**：在首頁連點月亮 5 下，輸入 `config.adminCode`。可以加減星星、重置今日次數（含怪客、簽到）、測試通知、召喚偷星怪客、回信給樹洞、清除資料。
 - **特效**：背景星空用 `#sky` canvas，持續播放，分頁隱藏時暫停；慶祝特效 `sparkle()` 畫在 `#fx` canvas 上。
 - `modal({icon,title,html,buttons,dismiss})` 回傳 `Promise<{i, values}>`，其中 `values` 是彈窗裡有 `name` 屬性的 input 的值。
 
