@@ -150,6 +150,14 @@ window.APP_CONFIG = {
     questions: [],
   },
 
+  /* ---------- 回信後台（Cloudflare Worker） ----------
+   * 設好之後你可以在自己手機上回她的樹洞葉子。設定步驟看 backend/README.md。
+   * 兩個都留空 "" 就是不用後台（管理模式裡的「回信給樹洞」還是可以用）。 */
+  backend: {
+    url: "https://starbox-mail.dylanworkersdev.workers.dev",   // Worker 網址
+    appKey: "cd39ccba5e3ebd22",      // 要和 Cloudflare 裡設的 APP_KEY 一模一樣（這把鑰匙本來就會公開在網頁裡，後台密碼才是真正的秘密）
+  },
+
   /* ---------- 每日輪盤 ----------
    * label：顯示的文字（4 個字以內最好看，最多 8 個字）
    * emoji：圖示

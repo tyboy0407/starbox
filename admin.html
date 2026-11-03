@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#070720">
+<title>樹洞回信後台</title>
+<link rel="apple-touch-icon" href="icon-180.png">
+<link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg0:#070720;--card:rgba(255,255,255,.065);--line:rgba(255,255,255,.13);--text:#f4effe;--muted:#b9afdb;--gold:#ffd98a;--pink:#ff9ecf;--violet:#b48cff;--ok:#7be0a8;--ng:#ff8aa6;
+  --font:"LXGW WenKai TC","PingFang TC","Heiti TC",-apple-system,sans-serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg0);color:var(--text);font-family:var(--font)}
+body{background:radial-gradient(ellipse 120% 70% at 50% 110%,#3d2275 0%,#1d1450 40%,#0b0a2a 75%,#070720 100%) fixed;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;touch-action:manipulation}
+textarea,input{font:inherit}
+h2,h3,h4,p{margin:0}
+#app{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 14px) 16px calc(40px + env(safe-area-inset-bottom))}
+.brand{font-size:18px;font-weight:700;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.brand span{color:var(--gold)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:14px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.card h4{font-size:15px;margin-bottom:10px;color:var(--gold);letter-spacing:1px;display:flex;justify-content:space-between;align-items:center}
+.muted{color:var(--muted)} .small{font-size:13px} .center{text-align:center} .gold{color:var(--gold)} .ok{color:var(--ok)} .ng{color:var(--ng)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 22px;border-radius:999px;font-weight:700;font-size:15px;color:#1a1430;
+  background:linear-gradient(135deg,#b48cff,#ff9ecf);box-shadow:0 6px 20px rgba(180,140,255,.35)}
+.btn:disabled{opacity:.45;box-shadow:none}
+.btn.ghost{background:rgba(255,255,255,.08);color:var(--text);box-shadow:none;border:1px solid var(--line)}
+.btn.sm{padding:8px 14px;font-size:13px}
+.input,textarea.ta{width:100%;border-radius:14px;padding:12px 14px;font-size:16px;color:var(--text);background:rgba(255,255,255,.06);border:1px solid var(--line);outline:none}
+textarea.ta{min-height:120px;resize:none;line-height:1.6}
+.input:focus,textarea.ta:focus{border-color:rgba(180,140,255,.7)}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+.hidden{display:none!important}
+.leaf{display:block;width:100%;text-align:left;padding:12px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line);margin-bottom:8px;line-height:1.55}
+.leaf.on{border-color:var(--gold);background:rgba(255,217,138,.12)}
+.leaf .l-head{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-bottom:3px}
+.leaf .l-text{white-space:pre-wrap;word-break:break-word}
+.leaf .rep{margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(143,214,148,.1);border:1px solid rgba(143,214,148,.3);font-size:13px;white-space:pre-wrap;word-break:break-word}
+.leaf .rep b{display:block;font-size:12px;margin-bottom:2px}
+.animals{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.ani{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 2px 8px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:11px;color:var(--muted)}
+.ani .e{font-size:26px;line-height:1.2}
+.ani.on{border-color:var(--gold);background:rgba(255,217,138,.14);color:var(--text)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
+.toast{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);opacity:0;background:rgba(44,26,94,.95);border:1px solid var(--line);padding:11px 18px;border-radius:999px;font-size:14px;transition:.25s;white-space:nowrap;z-index:50}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;background:rgba(255,255,255,.08);border:1px solid var(--line)}
+.pill.ok{color:var(--ok);border-color:rgba(123,224,168,.4)} .pill.wait{color:var(--gold);border-color:rgba(255,217,138,.4)}
+.empty{color:var(--muted);font-size:14px;text-align:center;padding:10px 0}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="brand"><div><span>✦</span> 樹洞回信後台</div><button class="btn ghost sm" id="setupBtn">⚙️ 設定</button></div>
+
+  <div class="card" id="setup">
+    <h4>連線設定</h4>
+    <p class="muted small">第一次用要填一次，之後會記在這支手機裡。</p>
+    <label>Worker 網址（例如 https://starbox-mail.xxx.workers.dev）</label>
+    <input class="input" id="url" inputmode="url" autocapitalize="off" placeholder="https://…workers.dev">
+    <label>後台密碼（Cloudflare 裡設的 ADMIN_SECRET）</label>
+    <input class="input" id="secret" type="password" autocomplete="current-password">
+    <div class="row"><span class="muted small" id="setupMsg"></span><button class="btn" id="saveSetup">儲存並連線</button></div>
+  </div>
+
+  <div class="card hidden" id="compose">
+    <h4>✍️ 寫回信 <span class="muted small" id="target">一般的信（不指定葉子）</span></h4>
+    <div class="animals" id="animals"></div>
+    <textarea class="ta" id="text" maxlength="2000" placeholder="寫給她的話…" style="margin-top:10px"></textarea>
+    <div class="row"><span class="muted small" id="tc">0 / 2000</span><button class="btn" id="send">派出去 🐾</button></div>
+  </div>
+
+  <div class="card hidden" id="leavesCard">
+    <h4>🍃 她的葉子 <button class="btn ghost sm" id="refresh">↻ 重新整理</button></h4>
+    <p class="muted small" style="margin-bottom:10px">點一片葉子就會變成「回這一片」；再點一次取消。</p>
+    <div id="leaves"></div>
+  </div>
+
+  <div class="card hidden" id="pendingCard">
+    <h4>📮 還沒送達的信</h4>
+    <div id="pending"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script>
+(() => {
+const C = window.APP_CONFIG || {};
+const T = Object.assign({ moods: [], animals: [] }, C.tree || {});
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const fmt = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const moodOf = k => T.moods.find(m => m.key === k) || { emoji: '🍃', label: '' };
+let toastT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2400); };
+
+const KEY = 'starbox_admin';
+let cfg = {}; try { cfg = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+let state = { leaves: [], replies: [] }, pickedLeaf = null, pickedAnimal = 0;
+
+async function api(path, opts = {}) {
+  const base = String(cfg.url || '').replace(/\/+$/, '');
+  if (!base) throw new Error('還沒設定 Worker 網址');
+  const res = await fetch(base + path, Object.assign({ headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (cfg.secret || '') } }, opts));
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  return data;
+}
+function showSetup(show) {
+  $('#setup').classList.toggle('hidden', !show);
+  ['#compose', '#leavesCard', '#pendingCard'].forEach(s => $(s).classList.toggle('hidden', show));
+}
+async function refresh() {
+  try {
+    state = await api('/admin/state');
+    render(); showSetup(false);
+  } catch (e) { toast('連線失敗：' + e.message); showSetup(true); $('#setupMsg').textContent = e.message; }
+}
+function render() {
+  const leaves = state.leaves || [], replies = state.replies || [];
+  const repliesOf = id => replies.filter(r => r.leafId === id);
+  $('#leaves').innerHTML = leaves.length ? leaves.map(l => { const m = moodOf(l.mood); return `<button class="leaf ${pickedLeaf === l.id ? 'on' : ''}" data-id="${esc(l.id)}">
+      <div class="l-head"><span>${esc(m.emoji)} ${esc(m.label)} · ${fmt(l.t)}</span><span>${repliesOf(l.id).length ? '✓ 回過 ' + repliesOf(l.id).length + ' 封' : ''}</span></div>
+      <div class="l-text">${esc(l.text)}</div>
+      ${repliesOf(l.id).map(r => `<div class="rep"><b>${esc(r.animal.emoji)} ${esc(r.animal.name)} · ${fmt(r.t)} <span class="pill ${r.delivered ? 'ok' : 'wait'}">${r.delivered ? '已送達 ' + fmt(r.deliveredAt) : '待送達'}</span></b>${esc(r.text)}</div>`).join('')}
+    </button>`; }).join('') : '<div class="empty">她還沒放過葉子（或 App 還沒同步）</div>';
+  document.querySelectorAll('.leaf').forEach(b => b.onclick = () => { pickedLeaf = pickedLeaf === b.dataset.id ? null : b.dataset.id; render(); if (pickedLeaf) $('#compose').scrollIntoView({ behavior: 'smooth' }); });
+  const target = leaves.find(l => l.id === pickedLeaf);
+  $('#target').textContent = target ? `回「${target.text.slice(0, 14)}${target.text.length > 14 ? '…' : ''}」` : '一般的信（不指定葉子）';
+  $('#animals').innerHTML = T.animals.map((a, i) => `<button class="ani ${i === pickedAnimal ? 'on' : ''}" data-i="${i}"><div class="e">${esc(a.emoji)}</div>${esc(a.name || '')}</button>`).join('');
+  document.querySelectorAll('.ani').forEach(b => b.onclick = () => { pickedAnimal = +b.dataset.i; render(); });
+  const pending = replies.filter(r => !r.delivered);
+  $('#pending').innerHTML = pending.length ? pending.map(r => `<div class="leaf"><div class="l-head"><span>${esc(r.animal.emoji)} ${esc(r.animal.name)} · ${fmt(r.t)}</span><button class="btn ghost sm" data-del="${esc(r.id)}">收回</button></div><div class="l-text">${esc(r.text)}</div></div>`).join('') : '<div class="empty">沒有待送達的信，她都收到了 💌</div>';
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (!confirm('收回這封還沒送達的信？')) return; try { await api('/admin/reply/delete', { method: 'POST', body: JSON.stringify({ id: b.dataset.del }) }); toast('已收回'); refresh(); } catch (e) { toast(e.message); } });
+}
+$('#url').value = cfg.url || ''; $('#secret').value = cfg.secret || '';
+$('#setupBtn').onclick = () => showSetup($('#setup').classList.contains('hidden'));
+$('#saveSetup').onclick = () => { cfg = { url: $('#url').value.trim(), secret: $('#secret').value }; try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {} $('#setupMsg').textContent = '連線中…'; refresh(); };
+$('#refresh').onclick = refresh;
+$('#text').oninput = () => { $('#tc').textContent = `${$('#text').value.length} / 2000`; };
+$('#send').onclick = async () => {
+  const text = $('#text').value.trim(); if (!text) return toast('先寫點什麼吧');
+  const a = T.animals[pickedAnimal] || { emoji: '🐿️', name: '松鼠' };
+  $('#send').disabled = true;
+  try {
+    await api('/admin/reply', { method: 'POST', body: JSON.stringify({ leafId: pickedLeaf || '', animal: { emoji: a.emoji, name: a.name || '' }, text }) });
+    $('#text').value = ''; $('#tc').textContent = '0 / 2000'; pickedLeaf = null;
+    toast(`${a.emoji} 已經出發，她下次打開 App 就會收到`);
+    await refresh();
+  } catch (e) { toast('送出失敗：' + e.message); }
+  $('#send').disabled = false;
+};
+if (cfg.url && cfg.secret) refresh(); else showSetup(true);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && cfg.url) refresh(); });
+})();
+</script>
+</body>
+</html>

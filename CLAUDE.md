@@ -26,6 +26,10 @@ manifest.webmanifest  PWA manifest
 icon-180/192/512.png  主畫面圖示（tools/make_icons.py 產生）
 README.md             給使用者看的部署與設定教學（繁中）
 assets/thief.png      偷星怪客的去背圖（config.thief.image）
+admin.html            男友的回信後台（獨立頁面，讀 config.js 取 moods/animals，連 Cloudflare Worker）
+backend/worker.js     Cloudflare Worker：葉子／回信的小信箱 API（KV 綁定 MAIL、變數 APP_KEY、Secret ADMIN_SECRET）
+backend/README.md     給使用者的 Cloudflare 設定教學
+tools/dev_backend.mjs 本機用記憶體模擬 Worker（node tools/dev_backend.mjs 8787），e2e 會自動啟動
 tools/make_icons.py   用 Pillow 產生圖示：python3 tools/make_icons.py .
 tools/e2e_test.py     Playwright 端對端測試，iPhone 尺寸跑完整流程並截圖
 ```
@@ -68,6 +72,7 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
 - **成就徽章**：`config.badges`（缺少時用 `DEFAULT_BADGES`），每個有 `type/goal`，進度由 `badgeProgress()` 算（部分從 `S.stats` 累計，用 `addStat()/maxStat()` 更新；spins/wishes 直接數現有資料）。`checkBadges()` 在輪盤、遊戲結束、兌換、許願、怪客、簽到後呼叫，新解鎖的排進 `badgeQueue`，`showBadgeQueue()` 只在沒彈窗、沒遊戲時顯示（`modal` 關閉與 `closeGame` 都會再觸發）。`render.badges` 是沒有 tab 的頁面（`#p-badges`），從首頁的入口卡進入，用 SVG 畫天蠍座 15 顆星（`SCORPIO`），第 5 顆是心宿二。
 - **綿綿樹洞**：`treeCfg()` 合併 `config.tree`（moods、animals 有預設）；`treeSceneSvg()` 畫場景，小動物依 `animals` 排序後對應 `ANIMAL_SPOTS` 位置；`submitLeaf()` 寫入 `S.leaves`、`flyLeaf()` 飛葉動畫、`notify({leafId})` 推播，新出現的小動物用 modal 宣布。樹洞分頁在啟動時依 `tree.enabled/tabName` 調整。
 - **樹洞回信**：男友在**她的手機**進管理模式按「回信給樹洞」→ `adminReply()` 三步：選葉子、選小動物、寫信（`modal` 的 `onOpen(bg, close)` 讓列表按鈕可以直接關閉彈窗），存進 `S.replies`。`deliverReplies()` 在啟動與回前景時（簽到之後、怪客之前）把未送達的回信用小動物叼信的彈窗顯示，標記 `delivered`，樹洞列表會在該葉子下方顯示回信。
+- **回信後台同步**：`config.backend.url/appKey` 有設時，`syncBackend()` 在啟動、回前景、online、放葉子後執行：POST 未同步葉子（`leaf.synced`）、POST 已送達回報（`reply.acked`）、GET 新回信（標 `remote: true` 存進 `S.replies`）。之後 `deliverReplies()` 照常顯示；遠端回信送達時會 ntfy 通知男友並回報後台。所有請求 8 秒逾時、失敗就下次再試，不影響 App 運作。
 - **星圖全亮彩蛋**：`maybeSkyComplete()` 由 `showBadgeQueue` 在佇列清空時呼叫；全部成就解鎖且 `S.skyComplete` 未設時，送 `config.skyComplete.reward` 兌換券（source `成就`）、顯示信件彈窗（`skySvg()` 加 `.cmap.alive` 動畫）。成就頁全亮時也會套 `alive` 並顯示信件卡。
 - **首頁訊息模板**：`fillTpl()` 會把 `{第幾天}`、`{生日倒數}`、`{名字}` 換成實際值；生日當月且有 `config.birthMonthMessage` 時，「給你的話」卡片改顯示它。
 - **管理模式**：在首頁連點月亮 5 下，輸入 `config.adminCode`。可以加減星星、重置今日次數（含怪客、簽到）、測試通知、召喚偷星怪客、回信給樹洞、清除資料。
@@ -95,6 +100,8 @@ python3 tools/e2e_test.py              # 截圖輸出到 tools/screenshots/
 ```
 
 這個腳本會用 iPhone 14 的尺寸跑完整流程：歡迎畫面 → 首頁 → 轉輪盤（並檢查指針停的位置和抽到的獎賞一致）→ 三個遊戲 → 兌換和使用兌換券 → 許願瓶。它會攔截 ntfy 請求，印出送出的通知內容，以及 console 錯誤。改完程式碼後請跑一次，並看一下截圖。
+
+e2e 會自動用 `node tools/dev_backend.mjs 8787` 跑一個記憶體版的 Worker，頁面以 `http://localhost/` 為假來源（Playwright route 攔截），後台請求走 `http://localhost/api/**` 再由 Playwright 轉送到 8787——因為新版 Chromium 會擋「網頁直接打本機網路位址」（Local Network Access），正式環境（GitHub Pages → workers.dev）不受影響。
 
 真機測試：`python3 -m http.server 8000`，再用同一個 Wi-Fi 下的 iPhone 開 `http://<電腦IP>:8000`。
 

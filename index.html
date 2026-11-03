@@ -1644,6 +1644,7 @@ async function submitLeaf() {
   const sending = t.notify !== false
     ? notify({ title: `🍃 ${C.herName} 的樹洞葉子${m.emoji ? ' ' + m.emoji : ''}`, message: `${m.label ? `心情：${m.emoji || ''} ${m.label}\n` : ''}${text}\n\n— ${fmtTime(leaf.t)}`, tags: ['leaves'], priority: 4, leafId: leaf.id })
     : Promise.resolve('skip');
+  syncBackend();
   setTimeout(async () => {
     sparkle(innerWidth / 2, 220, 50);
     if (current === 'tree') render.tree();
@@ -1657,6 +1658,48 @@ async function submitLeaf() {
     }
     checkBadges();
   }, 1400);
+}
+
+/* ================= 回信後台同步（Cloudflare Worker，設定在 config.backend） ================= */
+const backendCfg = () => Object.assign({ url: '', appKey: '' }, C.backend || {});
+const hasBackend = () => !!String(backendCfg().url || '').trim();
+async function backendFetch(path, opts = {}) {
+  const b = backendCfg(), ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const res = await fetch(String(b.url).replace(/\/+$/, '') + path, Object.assign({ signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'X-App-Key': String(b.appKey || '') } }, opts));
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) { return null; } finally { clearTimeout(timer); }
+}
+let syncing = false;
+// 把還沒同步的葉子送到後台、回報已送達的信、拉新的回信（有新信回傳 true）
+async function syncBackend() {
+  if (!hasBackend() || syncing || !navigator.onLine) return false;
+  syncing = true;
+  let changed = false, gotNew = false;
+  try {
+    for (const l of (S.leaves || []).filter(x => !x.synced).slice(0, 20)) {
+      const r = await backendFetch('/leaf', { method: 'POST', body: JSON.stringify({ id: l.id, t: l.t, mood: l.mood, text: l.text }) });
+      if (r && r.ok) { l.synced = true; changed = true; } else break;
+    }
+    const acks = (S.replies || []).filter(r => r.remote && r.delivered && !r.acked);
+    if (acks.length) {
+      const r = await backendFetch('/delivered', { method: 'POST', body: JSON.stringify({ ids: acks.map(x => x.id) }) });
+      if (r && r.ok) { acks.forEach(x => { x.acked = true; }); changed = true; }
+    }
+    const got = await backendFetch('/replies');
+    if (got && Array.isArray(got.replies)) {
+      if (!S.replies) S.replies = [];
+      for (const r of got.replies) {
+        if (S.replies.some(x => x.id === r.id)) continue;
+        S.replies.push({ id: String(r.id), leafId: String(r.leafId || ''), animal: { emoji: (r.animal && r.animal.emoji) || '🐿️', name: (r.animal && r.animal.name) || '' }, text: String(r.text || ''), t: +r.t || Date.now(), delivered: false, remote: true });
+        const leaf = (S.leaves || []).find(l => l.id === r.leafId); if (leaf) leaf.replied = true;
+        changed = true; gotNew = true;
+      }
+    }
+  } finally { syncing = false; }
+  if (changed) save();
+  return gotNew;
 }
 
 /* ================= 樹洞回信（男友在管理模式派小動物送信） ================= */
@@ -1712,6 +1755,10 @@ async function deliverReplies() {
       buttons: [{ text: '收下 💌', primary: true }]
     });
     r.delivered = true; log('💌', `${r.animal.name || '小動物'}送來${C.fromName}的回信`); save();
+    if (r.remote) {
+      if (C.ntfy.notifyWish !== false) notify({ title: `💌 ${C.herName} 收到${r.animal.name || '小動物'}的信了`, message: `${r.animal.emoji} 剛剛把你的回信送到了\n${fmtTime(Date.now())}`, tags: ['love_letter'], priority: 3 });
+      syncBackend();   // 回報後台已送達
+    }
   }
   if (render[current] && !game.key) render[current]();
   return true;
@@ -1730,7 +1777,7 @@ async function admin() {
   if (String(a.values.code) !== String(C.adminCode)) return toast('密碼不對喔');
   const b = await modal({
     title: '🛠 管理模式',
-    html: `<p class="left muted small">ntfy：${hasTopic() ? `已設定（${esc(C.ntfy.topic)}）` : '⚠️ 還沒設定 topic，收不到通知'}<br>等待送出的通知：${S.outbox.length} 則</p>
+    html: `<p class="left muted small">ntfy：${hasTopic() ? `已設定（${esc(C.ntfy.topic)}）` : '⚠️ 還沒設定 topic，收不到通知'}<br>等待送出的通知：${S.outbox.length} 則<br>回信後台：${hasBackend() ? `已設定（${esc(backendCfg().url)}）` : '未設定（看 backend/README.md）'}</p>
            <input class="input" name="pts" type="number" inputmode="numeric" placeholder="加幾顆${PN}？（負數是扣）">`,
     buttons: [{ text: `加 / 扣${PN}`, primary: true }, { text: '重置今天的次數' }, { text: '測試通知' }, { text: '召喚偷星怪客' }, { text: '回信給樹洞 📨' }, { text: '清除全部資料', danger: true }, { text: '關閉' }]
   });
@@ -1781,10 +1828,11 @@ document.addEventListener('visibilitychange', async () => {
   if (dayKey() !== lastDay) { lastDay = dayKey(); if (!game.key && render[current]) render[current](); }
   if (birthdayDays() === 0) maxStat('birthday', 1);
   if (await checkin()) return;   // 剛簽到就先不叫怪客出來
+  await syncBackend();
   if (await deliverReplies()) return;
   maybeThief();
 });
-addEventListener('online', flushOutbox);
+addEventListener('online', () => { flushOutbox(); syncBackend().then(n => { if (n) deliverReplies(); }); });
 
 go('home');
 flushOutbox();
@@ -1802,6 +1850,7 @@ flushOutbox();
   }
   if (birthdayDays() === 0) maxStat('birthday', 1);
   const signed = await checkin();
+  await syncBackend();
   const delivered = await deliverReplies();
   checkBadges();
   if (!firstOpen && !signed && !delivered) setTimeout(maybeThief, 900);   // 第一次打開或剛簽到就不叫怪客

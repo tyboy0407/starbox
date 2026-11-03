@@ -2,3 +2,5 @@ tools/screenshots/
 __pycache__/
 .DS_Store
 .claude/
+backend/wrangler.toml
+backend/.wrangler/

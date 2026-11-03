@@ -2,7 +2,7 @@
 用法：pip install playwright && playwright install chromium && python3 tools/e2e_test.py
 測試時會把 config 的 ntfy topic 設成 test-topic、撈星星改成 6 秒、生日設成 11-20（不改到實際檔案）。
 """
-import asyncio, json, re
+import asyncio, json, re, subprocess, sys, time, urllib.request
 from playwright.async_api import async_playwright
 import os, pathlib
 APP=str(pathlib.Path(__file__).resolve().parent.parent)
@@ -11,7 +11,20 @@ cfg=open(APP+'/config.js',encoding='utf8').read()
 cfg=cfg.replace('seconds: 30,','seconds: 6,')
 cfg=re.sub(r'topic: "[^"]*",','topic: "test-topic",',cfg,count=1)
 cfg=re.sub(r'chance: [\d.]+,','chance: 0,',cfg,count=1)   # 一般流程不讓偷星怪客隨機跳出，後面另外測
+BACKEND='http://127.0.0.1:8787'          # 本機模擬的 Worker
+BACKEND_URL='http://localhost/api'        # 頁面看到的後台網址（同源，由 Playwright 轉送到 BACKEND，避開 Chrome 的本機網路權限）
+cfg=re.sub(r'url: "",(\s*// Worker 網址)',f'url: "{BACKEND_URL}",\\1',cfg,count=1)
+cfg=re.sub(r'appKey: "",','appKey: "dev-app-key",',cfg,count=1)
 async def main():
+  backend=subprocess.Popen([ 'node', str(pathlib.Path(APP)/'tools'/'dev_backend.mjs'), '8787'])
+  for _ in range(40):
+    try: urllib.request.urlopen(BACKEND+'/'); break
+    except Exception: time.sleep(.25)
+  try:
+    await run()
+  finally:
+    backend.terminate()
+async def run():
   async with async_playwright() as p:
     b=await p.chromium.launch()
     ctx=await b.new_context(viewport={'width':390,'height':844},device_scale_factor=2,is_mobile=True,has_touch=True,
@@ -24,12 +37,17 @@ async def main():
       sent.append(json.loads(route.request.post_data)); await route.fulfill(status=200,body='{}',headers={'access-control-allow-origin':'*'})
     await pg.route('https://ntfy.sh/**',ntfy); await pg.route('https://ntfy.sh',ntfy)
     async def files(route):
-      path=route.request.url.split('localtest/')[1].split('?')[0] or 'index.html'
+      path=route.request.url.split('localhost/')[1].split('?')[0] or 'index.html'
       if path=='config.js': return await route.fulfill(body=cfg,content_type='application/javascript')
+      if path=='admin.html': return await route.fulfill(body=open(f'{APP}/admin.html','rb').read(),content_type='text/html')
       ct={'html':'text/html','png':'image/png','jpg':'image/jpeg','webmanifest':'application/manifest+json'}.get(path.rsplit('.',1)[-1],'text/plain')
       if not os.path.isfile(f'{APP}/{path}'): return await route.fulfill(status=404,body='')   # 缺檔回 404 而不是當掉
       await route.fulfill(body=open(f'{APP}/{path}','rb').read(),content_type=ct)
-    await pg.route('http://localtest/**',files)
+    await pg.route('http://localhost/**',files)
+    async def api(route):
+      resp=await route.fetch(url=BACKEND+route.request.url.split('localhost/api')[1])
+      await route.fulfill(response=resp)
+    await pg.route('http://localhost/api/**',api)
     await pg.route(re.compile(r'https://fonts\..*'),lambda r: r.fulfill(body='',content_type='text/css'))
     async def clear_modals():
       # 把所有還開著的彈窗（簽到、成就…）按掉，按最後一顆（主要）按鈕
@@ -39,7 +57,7 @@ async def main():
         btns=await m.query_selector_all('.m-btns .btn')
         if not btns: break
         await btns[-1].click(); await pg.wait_for_timeout(350)
-    await pg.goto('http://localtest/'); await pg.wait_for_timeout(800)
+    await pg.goto('http://localhost/'); await pg.wait_for_timeout(800)
     await pg.screenshot(path=f'{OUT}/1-welcome.png')
     await pg.click('.modal-bg .btn'); await pg.wait_for_timeout(500)
     await pg.screenshot(path=f'{OUT}/1b-checkin.png')
@@ -200,6 +218,24 @@ async def main():
     await clear_modals()
     await pg.click('.tab[data-page=tree]'); await pg.wait_for_timeout(400)
     await pg.screenshot(path=f'{OUT}/18f-tree-reply.png',full_page=True)
+    # 回信後台：葉子已同步到本機後台 → 在 admin.html 寫信 → App 回前景收到
+    synced=json.loads(urllib.request.urlopen(urllib.request.Request(BACKEND+'/admin/state',headers={'Authorization':'Bearer dev-admin-secret'})).read())
+    print('backend leaves',[l['text'][:12] for l in synced['leaves']])
+    ad=await ctx.new_page()
+    await ad.route('http://localhost/**',files); await ad.route('http://localhost/api/**',api)
+    await ad.goto('http://localhost/admin.html'); await ad.wait_for_timeout(500)
+    await ad.fill('#url',BACKEND_URL); await ad.fill('#secret','dev-admin-secret'); await ad.click('#saveSetup'); await ad.wait_for_timeout(800)
+    await ad.click('.leaf >> nth=0'); await ad.click('.ani >> nth=2'); await ad.fill('#text','小兔幫我帶句話：你今天也很棒 🐰')
+    await ad.click('#send'); await ad.wait_for_timeout(800)
+    await ad.screenshot(path=f'{OUT}/18g-admin.png',full_page=True)
+    print('admin pending',await ad.inner_text('#pending'))
+    await pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); await pg.wait_for_timeout(1500)
+    print('remote reply modal',(await pg.inner_text('.modal-bg:not(.out)')).replace(chr(10),' / ')[:100])
+    await pg.screenshot(path=f'{OUT}/18h-remote-reply.png')
+    await clear_modals(); await pg.wait_for_timeout(800)
+    await ad.click('#refresh'); await ad.wait_for_timeout(800)
+    print('admin after',await ad.inner_text('#pending'))
+    await ad.close()
     await pg.click('.tab[data-page=home]'); await pg.wait_for_timeout(400)
     await pg.screenshot(path=f'{OUT}/19-home-after.png',full_page=True)
     # badges page
@@ -209,7 +245,7 @@ async def main():
     st=await pg.evaluate('JSON.parse(localStorage.starbox_v1)')
     print('points',st['points'],'plays',st['plays'],'coupons',[(c['name'],c['used']) for c in st['coupons']],'outbox',len(st['outbox']),'wish sent',[w['sent'] for w in st['wishes']])
     print('streak',st['streak'],'stats',st['stats'],'badges',list(st['badges'].keys()))
-    print('leaves',[(l['mood'],l['sent']) for l in st['leaves']],'replies',[(r['animal']['name'],r['delivered']) for r in st['replies']])
+    print('leaves',[(l['mood'],l['sent'],l.get('synced')) for l in st['leaves']],'replies',[(r['animal']['name'],r['delivered'],r.get('remote',False),r.get('acked')) for r in st['replies']])
     # 星圖全亮彩蛋：把所有成就設成已解鎖後重新載入
     await pg.evaluate("(()=>{const s=JSON.parse(localStorage.starbox_v1);s.badges={};APP_CONFIG.badges.forEach(b=>s.badges[b.id]=Date.now());localStorage.starbox_v1=JSON.stringify(s)})()")
     await pg.reload(); await pg.wait_for_timeout(1500)
