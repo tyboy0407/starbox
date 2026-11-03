@@ -200,6 +200,25 @@ canvas.catch{width:100%;display:block;border-radius:20px;border:1px solid var(--
 .floatxt{position:absolute;left:50%;top:10%;transform:translateX(-50%);font-weight:700;font-size:22px;pointer-events:none;animation:floatUp .7s ease-out forwards;z-index:2}
 .floatxt.good{color:var(--gold)} .floatxt.bad{color:var(--ng)}
 @keyframes floatUp{to{transform:translate(-50%,-40px);opacity:0}}
+/* 命運骰子 */
+.dice{width:88px;height:88px;margin:0 auto 10px;border-radius:20px;background:linear-gradient(145deg,#ffffff,#e4ddff);box-shadow:0 10px 26px rgba(0,0,0,.45),inset 0 -5px 0 rgba(0,0,0,.08);display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:13px;gap:5px}
+.dice.roll{animation:diceRoll .45s linear infinite}
+@keyframes diceRoll{0%{transform:rotate(0) translateY(0)}25%{transform:rotate(14deg) translateY(-10px)}50%{transform:rotate(0) translateY(0)}75%{transform:rotate(-14deg) translateY(-10px)}100%{transform:rotate(0)}}
+.dice.land{animation:pop .5s}
+.dice i{border-radius:50%;background:#2c1a5e;opacity:0}
+.dice[data-f="1"] i:nth-child(5),
+.dice[data-f="2"] i:nth-child(3),.dice[data-f="2"] i:nth-child(7),
+.dice[data-f="3"] i:nth-child(3),.dice[data-f="3"] i:nth-child(5),.dice[data-f="3"] i:nth-child(7),
+.dice[data-f="4"] i:nth-child(1),.dice[data-f="4"] i:nth-child(3),.dice[data-f="4"] i:nth-child(7),.dice[data-f="4"] i:nth-child(9),
+.dice[data-f="5"] i:nth-child(1),.dice[data-f="5"] i:nth-child(3),.dice[data-f="5"] i:nth-child(5),.dice[data-f="5"] i:nth-child(7),.dice[data-f="5"] i:nth-child(9),
+.dice[data-f="6"] i:nth-child(1),.dice[data-f="6"] i:nth-child(3),.dice[data-f="6"] i:nth-child(4),.dice[data-f="6"] i:nth-child(6),.dice[data-f="6"] i:nth-child(7),.dice[data-f="6"] i:nth-child(9){opacity:1}
+/* 刮刮樂 */
+.scratch{position:relative;width:270px;max-width:100%;height:156px;margin:0 auto 10px;border-radius:18px;overflow:hidden;background:linear-gradient(135deg,#2c1a5e,#4a2a8c);border:2px solid rgba(255,217,138,.65);box-shadow:0 10px 26px rgba(0,0,0,.4)}
+.s-prize{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;text-align:center}
+.s-prize .s-big{font-size:40px;line-height:1}
+.s-prize .s-txt{font-size:20px;font-weight:700;color:var(--gold)}
+.s-cover{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.s-cover.done{transition:opacity .6s;opacity:0;pointer-events:none}
 .countdown{font-size:72px;font-weight:700;text-align:center;color:var(--gold);text-shadow:0 0 24px rgba(255,217,138,.6);animation:pop .5s}
 
 /* 翻牌 */
@@ -1293,14 +1312,95 @@ async function redeem(id) {
   if (S.points < it.cost) return toast(`${PN}還不夠喔`);
   const { i } = await modal({ icon: esc(it.emoji || '🎁'), title: `兌換「${esc(it.name)}」？`, html: `<p>會用掉 ${PE} ${it.cost} ${PN}</p><p class="muted small">兌換後剩下 ${S.points - it.cost}</p>`, buttons: [{ text: '再想想' }, { text: '兌換！', primary: true }] });
   if (i !== 1 || S.points < it.cost) return;
+  // 有 dice／scratch 的品項：先決定結果再播動畫，兌換券上直接寫抽到的獎勵
+  const faces = Array.isArray(it.dice) ? it.dice.filter(Boolean).slice(0, 6) : [];
+  const pool = !faces.length && Array.isArray(it.scratch) ? it.scratch.filter(Boolean) : [];
+  const roll = faces.length ? { n: 1 + Math.floor(Math.random() * faces.length), get text() { return faces[this.n - 1]; } } : null;
+  const win = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+  const name = roll ? `${it.name}：${roll.text}` : win ? `${it.name}：${win}` : it.name;
   S.redeemCount[id] = (S.redeemCount[id] || 0) + 1;
-  S.coupons.unshift({ id: uid(), name: it.name, emoji: it.emoji || '🎁', source: '兌換', t: Date.now(), used: false });
+  S.coupons.unshift({ id: uid(), name, emoji: it.emoji || '🎁', source: '兌換', t: Date.now(), used: false });
   addStat('redeems');
-  addPoints(-it.cost, it.emoji || '🎁', `兌換 ${it.name}`);
-  render.shop(); sparkle();
+  addPoints(-it.cost, it.emoji || '🎁', `兌換 ${name}`);
+  render.shop();
+  if (C.ntfy.notifyRedeem !== false) notify({ title: `🎁 ${C.herName} 兌換了禮物`, message: `${it.emoji || ''} ${name}${roll ? `（骰到 ${roll.n} 點）` : ''}（-${it.cost} ${PN}，還剩 ${S.points}）\n${fmtTime(Date.now())}`, tags: ['gift'] });
+  if (roll) await rollDice(it, roll, faces);
+  else if (win) await scratchCard(it, win);
+  sparkle();
   checkBadges();
   toast('兌換成功！已放進「我的兌換券」');
-  if (C.ntfy.notifyRedeem !== false) notify({ title: `🎁 ${C.herName} 兌換了禮物`, message: `${it.emoji || ''} ${it.name}（-${it.cost} ${PN}，還剩 ${S.points}）\n${fmtTime(Date.now())}`, tags: ['gift'] });
+}
+// 刮刮卡：canvas 塗層蓋住獎品，手指刮掉一半以上就自動全部揭曉
+function scratchCard(it, win) {
+  return modal({
+    title: `${esc(it.emoji || '🎟️')} ${esc(it.name)}`, dismiss: false,
+    html: `<div class="scratch"><div class="s-prize"><div class="s-big">🎁</div><div class="s-txt">${esc(win)}</div></div><canvas class="s-cover" id="sCv"></canvas></div>
+      <p class="muted small" id="sMsg">用手指把銀色塗層刮開 👆</p>`,
+    buttons: [{ text: '收下！', primary: true }],
+    onOpen(bg) {
+      const cv = $('#sCv', bg), ctx = cv.getContext('2d'), btns = $('.m-btns', bg), msg = $('#sMsg', bg);
+      btns.classList.add('hidden');
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const W = cv.clientWidth || 270, H = cv.clientHeight || 156;
+      cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // 銀色塗層
+      const g = ctx.createLinearGradient(0, 0, W, H);
+      g.addColorStop(0, '#d9d9e6'); g.addColorStop(.45, '#9c9cb4'); g.addColorStop(.55, '#c4c4d6'); g.addColorStop(1, '#8a8aa3');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.font = '700 13px ' + getComputedStyle(document.body).fontFamily;
+      for (let y = 14; y < H; y += 26) for (let x = ((y / 26) % 2) * 30 - 10; x < W; x += 64) ctx.fillText('✦ 刮刮樂', x, y);
+      ctx.fillStyle = '#3b2a6e'; ctx.font = '700 20px ' + getComputedStyle(document.body).fontFamily; ctx.textAlign = 'center';
+      ctx.fillText('👆 刮開我', W / 2, H / 2 + 7);
+      ctx.globalCompositeOperation = 'destination-out';
+      let down = false, strokes = 0, done = false, last = null;
+      const pt = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+      ctx.lineWidth = 44; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      // 手指滑得快時事件會很稀疏，所以把前後兩點連成粗線，刮痕才不會斷
+      const erase = (x, y) => {
+        ctx.beginPath(); ctx.arc(x, y, 22, 0, Math.PI * 2); ctx.fill();
+        if (last) { ctx.beginPath(); ctx.moveTo(last[0], last[1]); ctx.lineTo(x, y); ctx.stroke(); }
+        last = [x, y];
+      };
+      const progress = () => {
+        const d = ctx.getImageData(0, 0, cv.width, cv.height).data; let clear = 0, total = 0;
+        for (let i = 3; i < d.length; i += 4 * 9) { total++; if (d[i] === 0) clear++; }
+        return clear / total;
+      };
+      const finish = () => {
+        if (done) return; done = true;
+        cv.classList.add('done');
+        msg.innerHTML = `刮到了：<b class="gold">${esc(win)}</b> 🎉`;
+        sparkle(innerWidth / 2, innerHeight * .4, 110);
+        btns.classList.remove('hidden');
+      };
+      cv.addEventListener('pointerdown', e => { e.preventDefault(); down = true; last = null; cv.setPointerCapture(e.pointerId); erase(...pt(e)); });
+      cv.addEventListener('pointermove', e => { if (!down || done) return; erase(...pt(e)); if (++strokes % 8 === 0 && progress() > .5) finish(); });
+      const up = e => { if (down && e && e.clientX) erase(...pt(e)); down = false; last = null; if (!done && progress() > .5) finish(); };
+      cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    }
+  });
+}
+// 骰子動畫：先亂跳 1.8 秒，再停在 roll.n 顯示結果
+function rollDice(it, roll, faces) {
+  return modal({
+    title: `${esc(it.emoji || '🎲')} ${esc(it.name)}`, dismiss: false,
+    html: `<div class="dice roll" id="dice" data-f="1">${'<i></i>'.repeat(9)}</div><p class="muted" id="diceMsg">骰子滾動中…</p>
+      <p class="muted small">${faces.map((f, k) => `${k + 1} ${esc(f)}`).join('　')}</p>`,
+    buttons: [{ text: '收下！', primary: true }],
+    onOpen(bg) {
+      const d = $('#dice', bg), msg = $('#diceMsg', bg), btns = $('.m-btns', bg);
+      btns.classList.add('hidden');
+      let k = 0;
+      const iv = setInterval(() => { d.dataset.f = 1 + Math.floor(Math.random() * 6); k++; }, 90);
+      setTimeout(() => {
+        clearInterval(iv);
+        d.classList.remove('roll'); d.classList.add('land'); d.dataset.f = roll.n;
+        msg.innerHTML = `骰到 <b class="gold">${roll.n}</b> 點！<br><b class="big gold">${esc(roll.text)}</b>`;
+        sparkle(innerWidth / 2, innerHeight * .4, 100);
+        btns.classList.remove('hidden');
+      }, 1800);
+    }
+  });
 }
 async function useCoupon(id) {
   const c = S.coupons.find(x => x.id === id); if (!c || c.used) return;

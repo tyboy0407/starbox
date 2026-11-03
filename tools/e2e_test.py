@@ -133,6 +133,37 @@ async def main():
       await pg.screenshot(path=f'{OUT}/13b-badge-unlock.png')
       await clear_modals()
       await pg.click('[data-use]'); await pg.wait_for_timeout(300); await pg.click('.modal-bg .btn >> nth=1'); await pg.wait_for_timeout(500)
+    # 用管理模式加 1000 顆，測命運骰子和刮刮樂
+    await pg.click('.tab[data-page=home]'); await pg.wait_for_timeout(300)
+    for _ in range(5): await pg.click('#moon')
+    await pg.wait_for_timeout(400); await pg.fill('.modal-bg input[name=code]',re.search(r'adminCode:\s*"([^"]+)"',cfg).group(1)); await pg.click('.modal-bg [data-i="1"]'); await pg.wait_for_timeout(400)
+    await pg.fill('.modal-bg input[name=pts]','1000'); await pg.click('.modal-bg [data-i="0"]'); await pg.wait_for_timeout(400)
+    await clear_modals()
+    await pg.click('.tab[data-page=shop]'); await pg.wait_for_timeout(300)
+    # 命運骰子
+    dice=await pg.query_selector('[data-redeem=dice]:not([disabled])')
+    if dice:
+      await dice.click(); await pg.wait_for_timeout(400); await pg.click('.modal-bg .btn >> nth=1'); await pg.wait_for_timeout(900)
+      await pg.screenshot(path=f'{OUT}/13c-dice-rolling.png')
+      await pg.wait_for_timeout(1500)
+      await pg.screenshot(path=f'{OUT}/13d-dice-result.png')
+      print('dice',await pg.inner_text('#diceMsg'))
+      await clear_modals()
+    # 刮刮樂：用滑鼠把塗層刮掉
+    sc=await pg.query_selector('[data-redeem=scratch]:not([disabled])')
+    if sc:
+      await sc.click(); await pg.wait_for_timeout(400); await pg.click('.modal-bg .btn >> nth=1'); await pg.wait_for_timeout(500)
+      box=await pg.eval_on_selector('#sCv','e=>{const r=e.getBoundingClientRect();return [r.left,r.top,r.width,r.height]}')
+      await pg.mouse.move(box[0]+10,box[1]+10); await pg.mouse.down()
+      for row in range(6):
+        y=box[1]+12+row*(box[3]-24)/5
+        xs=range(0,12) if row%2==0 else range(11,-1,-1)
+        for c in xs: await pg.mouse.move(box[0]+10+c*(box[2]-20)/11,y)
+        if row==2: await pg.screenshot(path=f'{OUT}/13e-scratch-half.png')
+      await pg.mouse.up(); await pg.wait_for_timeout(800)
+      await pg.screenshot(path=f'{OUT}/13f-scratch-done.png')
+      print('scratch',await pg.inner_text('#sMsg'))
+      await clear_modals()
     await pg.screenshot(path=f'{OUT}/14-shop-after.png',full_page=True)
     # wish
     await pg.click('.tab[data-page=wish]'); await pg.wait_for_timeout(400)
