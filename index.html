@@ -1368,7 +1368,10 @@ async function redeem(id) {
   const faces = Array.isArray(it.dice) ? it.dice.filter(Boolean).slice(0, 6) : [];
   const pool = !faces.length && Array.isArray(it.scratch) ? it.scratch.filter(Boolean) : [];
   const roll = faces.length ? { n: 1 + Math.floor(Math.random() * faces.length), get text() { return faces[this.n - 1]; } } : null;
-  const win = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+  const isAgain = x => /再刮/.test(String(x));
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  let win = pool.length ? pick(pool) : null, again = false;
+  if (win && isAgain(win) && pool.some(x => !isAgain(x))) { again = true; win = pick(pool.filter(x => !isAgain(x))); }   // 刮到「再刮一次」：免費再刮一張
   const name = roll ? `${it.name}：${roll.text}` : win ? `${it.name}：${win}` : it.name;
   S.redeemCount[id] = (S.redeemCount[id] || 0) + 1;
   S.coupons.unshift({ id: uid(), name, emoji: it.emoji || '🎁', source: '兌換', t: Date.now(), used: false });
@@ -1377,18 +1380,18 @@ async function redeem(id) {
   render.shop();
   if (C.ntfy.notifyRedeem !== false) notify({ title: `🎁 ${C.herName} 兌換了禮物`, message: `${it.emoji || ''} ${name}${roll ? `（骰到 ${roll.n} 點）` : ''}（-${it.cost} ${PN}，還剩 ${S.points}）\n${fmtTime(Date.now())}`, tags: ['gift'] });
   if (roll) await rollDice(it, roll, faces);
-  else if (win) await scratchCard(it, win);
+  else if (win) { if (again) await scratchCard(it, '再刮一次', true); await scratchCard(it, win); }
   sparkle();
   checkBadges();
   toast('兌換成功！已放進「我的兌換券」');
 }
 // 刮刮卡：canvas 塗層蓋住獎品，手指刮掉一半以上就自動全部揭曉
-function scratchCard(it, win) {
+function scratchCard(it, win, isAgainCard = false) {
   return modal({
     title: `${esc(it.emoji || '🎟️')} ${esc(it.name)}`, dismiss: false,
     html: `<div class="scratch"><div class="s-prize"><div class="s-big">🎁</div><div class="s-txt">${esc(win)}</div></div><canvas class="s-cover" id="sCv"></canvas></div>
       <p class="muted small" id="sMsg">用手指把銀色塗層刮開 👆</p>`,
-    buttons: [{ text: '收下！', primary: true }],
+    buttons: [{ text: isAgainCard ? '再刮一張 🎟️' : '收下！', primary: true }],
     onOpen(bg) {
       const cv = $('#sCv', bg), ctx = cv.getContext('2d'), btns = $('.m-btns', bg), msg = $('#sMsg', bg);
       btns.classList.add('hidden');
@@ -1421,7 +1424,7 @@ function scratchCard(it, win) {
       const finish = () => {
         if (done) return; done = true;
         cv.classList.add('done');
-        msg.innerHTML = `刮到了：<b class="gold">${esc(win)}</b> 🎉`;
+        msg.innerHTML = isAgainCard ? `刮到 <b class="gold">再刮一次</b>！免費再送你一張 🎉` : `刮到了：<b class="gold">${esc(win)}</b> 🎉`;
         sparkle(innerWidth / 2, innerHeight * .4, 110);
         btns.classList.remove('hidden');
       };
