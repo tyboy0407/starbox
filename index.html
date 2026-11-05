@@ -323,6 +323,59 @@ textarea.wish::placeholder{color:rgba(185,175,219,.6)}
 .wlist li:first-child{border-top:0}
 .wlist .w-date{font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
 .wlist .w-text{margin-top:4px;line-height:1.6;white-space:pre-wrap;word-break:break-word;-webkit-user-select:text;user-select:text}
+/* 生日當天的驚喜 */
+.bparty{position:fixed;inset:0;z-index:95;background:rgba(5,3,22,0);transition:background 1s;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;overflow:hidden}
+.bparty.dim{background:rgba(5,3,22,.94)}
+.bparty canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.bday-stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.bday-hint{color:var(--muted);font-size:15px;margin:0 0 14px;min-height:22px;text-align:center;transition:opacity .4s,color .3s}
+.bday-hint.go{color:#ffd98a;font-size:18px}
+.cake{width:min(72vw,280px);transition:transform .9s cubic-bezier(.5,0,.8,.4),opacity .9s;cursor:pointer;filter:drop-shadow(0 10px 30px rgba(255,170,220,.25))}
+.cake svg{width:100%;height:auto;display:block;overflow:visible}
+.cake.away{transform:scale(.3) translateY(60px);opacity:0}
+.flame{transform-box:fill-box;transform-origin:50% 100%;animation:flick .4s ease-in-out infinite alternate}
+.cake.hold .flame{animation-duration:.1s}
+@keyframes flick{from{transform:scale(1,1) rotate(-5deg)}to{transform:scale(.88,1.14) rotate(6deg)}}
+.candle.out .flame{animation:flameOut .35s ease-in forwards}
+@keyframes flameOut{to{transform:scale(.3,.05);opacity:0}}
+.smoke{opacity:0;transform-box:fill-box;transform-origin:50% 100%}
+.candle.out .smoke{animation:smokeUp 1.8s ease-out forwards}
+@keyframes smokeUp{0%{opacity:.75;transform:translateY(0) scale(.6)}100%{opacity:0;transform:translateY(-34px) scale(1.4)}}
+.bday-hold{width:180px;height:8px;border-radius:99px;background:rgba(255,255,255,.12);margin-top:18px;overflow:hidden;transition:opacity .4s}
+.bday-hold i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd98a,#ff9bd2);border-radius:99px;transition:width .1s linear}
+.bday-title{position:absolute;left:0;right:0;top:20%;margin:0;padding:0 16px;text-align:center;font-size:34px;line-height:1.3;color:#fff2c4;text-shadow:0 0 18px rgba(255,217,138,.8),0 2px 10px rgba(0,0,0,.6);opacity:0;transform:scale(.6);transition:transform .9s cubic-bezier(.2,1.4,.4,1),opacity .6s,top .8s ease,font-size .8s ease;pointer-events:none}
+.bday-title.show{opacity:1;transform:scale(1)}
+.bday-title.top{top:calc(8% + env(safe-area-inset-top));font-size:24px}
+.parade-hint{position:absolute;left:0;right:0;top:38%;opacity:0;padding:0 24px}
+.parade{position:absolute;left:0;right:0;bottom:16%;display:flex;justify-content:center;align-items:flex-end;transform:translateX(-130vw);transition:transform 2.6s cubic-bezier(.35,.5,.25,1)}
+.parade.in{transform:translateX(0)}
+.parade .carriers{display:flex;align-items:flex-end;gap:0;margin-bottom:4px}
+.parade .carriers .a-img{width:50px;height:50px;margin:0 -6px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.5))}
+.parade.in .carriers .a-img{animation:walk .5s ease-in-out infinite alternate}
+.parade.arrived .carriers .a-img{animation:animalIdle 3s ease-in-out infinite}
+.parade.open .carriers .a-img{animation:cheer .7s ease-in-out infinite}
+@keyframes walk{from{transform:translateY(0) rotate(-6deg)}to{transform:translateY(-8px) rotate(6deg)}}
+@keyframes cheer{0%,100%{transform:translateY(0) scale(1.05,.95)}50%{transform:translateY(-22px) scale(.95,1.08)}}
+.gift{position:relative;width:112px;height:124px;margin:0 2px 2px;cursor:pointer;transform-origin:50% 100%;z-index:1}
+.gift .gbox{position:absolute;left:12px;right:12px;bottom:0;height:78px;background:linear-gradient(#ff8fc7,#e45a9c);border-radius:8px;box-shadow:inset 0 -12px 0 rgba(0,0,0,.12),0 8px 20px rgba(0,0,0,.4)}
+.gift .gbox:before{content:'';position:absolute;left:50%;top:0;bottom:0;width:18px;margin-left:-9px;background:#ffd98a}
+.gift .lid{position:absolute;left:0;right:0;bottom:70px;height:30px;background:linear-gradient(#ffa3d4,#ff7fbf);border-radius:8px;transition:transform .7s cubic-bezier(.3,1.2,.5,1),opacity .7s;box-shadow:0 4px 10px rgba(0,0,0,.3)}
+.gift .lid:before{content:'';position:absolute;left:50%;top:0;bottom:0;width:18px;margin-left:-9px;background:#ffd98a}
+.gift .bow{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);font-size:34px;line-height:1;transition:transform .7s,opacity .5s}
+.parade.ready .gift{animation:giftWiggle 1.1s ease-in-out infinite}
+@keyframes giftWiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-4deg) scale(1.03)}75%{transform:rotate(4deg) scale(1.03)}}
+.parade.open .gift{animation:giftPop .5s ease-out}
+@keyframes giftPop{30%{transform:scale(1.15,.85)}60%{transform:scale(.92,1.1)}}
+.parade.open .gift .lid{transform:translate(-30px,-150px) rotate(-40deg);opacity:0}
+.parade.open .gift .bow{transform:translate(-50%,-160px) rotate(30deg);opacity:0}
+.bday-gain{position:absolute;left:0;right:0;top:30%;text-align:center;font-size:42px;font-weight:700;color:#ffd98a;text-shadow:0 0 16px rgba(255,217,138,.9),0 2px 8px rgba(0,0,0,.6);opacity:0;transform:translateY(20px);transition:.5s;pointer-events:none}
+.bday-gain.show{opacity:1;transform:none}
+.bday-coupon{position:absolute;left:24px;right:24px;top:44%;transform:translateY(-50%) scale(.7);opacity:0;pointer-events:none;background:linear-gradient(135deg,rgba(255,217,138,.22),rgba(255,143,199,.22));border:1px solid rgba(255,217,138,.6);border-radius:22px;padding:18px 18px 16px;text-align:center;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 40px rgba(0,0,0,.5);transition:transform .7s cubic-bezier(.2,1.4,.4,1),opacity .4s}
+.bday-coupon.show{opacity:1;transform:translateY(-50%) scale(1);pointer-events:auto}
+.bday-coupon .ce{font-size:44px;line-height:1.1}
+.bday-coupon h3{margin:6px 0 2px;font-size:22px;color:#fff2c4}
+.bday-coupon p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.bday-coupon .btn{margin-top:14px}
 /* 綿綿樹洞 */
 .tree-scene{margin:2px -6px 12px}
 .tree-scene svg{width:100%;height:auto;display:block;overflow:visible}
@@ -479,7 +532,8 @@ const fresh = () => ({ points: C.startingPoints || 0, history: [], spins: {}, pl
   badges: {},                                   // 已解鎖成就 { id: 時間 }
   leaves: [],                                   // 樹洞的心情葉子 [{id, t, mood, text, sent, replied}]
   replies: [],                                  // 男友的回信 [{id, leafId, animal:{emoji,name}, text, t, delivered}]
-  skyComplete: 0 });                            // 星圖全亮彩蛋已觸發的時間
+  skyComplete: 0,                               // 星圖全亮彩蛋已觸發的時間
+  bday: {} });                                  // 生日驚喜：{ '2026': {t, done} }，每年演一次
 let S;
 try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || {}); } catch (e) { S = fresh(); }
 function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
@@ -1151,7 +1205,7 @@ function thiefPool() {
 // 打開 App／回到前景時呼叫：依機率決定要不要跳出怪客
 function maybeThief() {
   const t = thiefCfg();
-  if (!t.enabled || !S.welcomed || game.key || $('.modal-bg')) return;
+  if (!t.enabled || !S.welcomed || game.key || bdayActive || $('.modal-bg')) return;
   const d = dayKey(), n = (S.thief || {})[d] || 0;
   if (n >= t.maxPerDay || S.points < t.minPoints) return;
   const pool = thiefPool();
@@ -1276,7 +1330,7 @@ function checkBadges() {
   showBadgeQueue();
 }
 async function showBadgeQueue() {
-  if (showingBadge || game.key || $('.modal-bg:not(.out)')) return;
+  if (showingBadge || game.key || bdayActive || $('.modal-bg:not(.out)')) return;
   if (!badgeQueue.length) return maybeSkyComplete();
   showingBadge = true;
   while (badgeQueue.length) {
@@ -1804,6 +1858,141 @@ async function deliverReplies() {
   return true;
 }
 
+/* ================= 生日當天的驚喜（吹蠟燭 → 煙火 → 小動物搬禮物 → 星星噴出來） ================= */
+const bdayCfg = () => Object.assign({ enabled: true, title: '生日快樂🎂 {名字}!', candles: 5, holdSeconds: 5, stars: 500, gift: '生日願望券', giftEmoji: '🎂', giftDesc: '生日專屬，想許什麼願都可以' }, C.birthdayParty || {});
+const bdayYear = () => String(new Date().getFullYear());
+const bdayPending = () => bdayCfg().enabled !== false && birthdayDays() === 0 && !((S.bday || {})[bdayYear()] || {}).done;
+let bdayActive = false;
+
+// 生日畫面 canvas 上的粒子：煙火（rocket → burst）、彩帶（confetti）、從禮物盒噴出來的星星（stars）
+function bdayFx(cv) {
+  const ctx = cv.getContext('2d'), dpr = Math.min(devicePixelRatio || 1, 2), COLORS = ['#ffd98a', '#ff9bd2', '#9ad8ff', '#c9b8ff', '#8fd694', '#fff2c4'];
+  let W, H, P = [], confettiOn = false, raf = 0, last = 0, acc = 0, alive = true;
+  const size = () => { W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+  size(); addEventListener('resize', size);
+  const rnd = (a, b) => a + Math.random() * (b - a), col = () => COLORS[Math.floor(Math.random() * COLORS.length)];
+  const burst = (x, y, c, n = 90) => { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, s = rnd(40, 300), two = Math.random() < .3; P.push({ k: 'dot', x, y, px: x, py: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, g: 120, life: rnd(1.1, 2), age: 0, c: two ? '#fff' : c, r: rnd(1.1, 2.2) }); } };
+  // 沖天：往上飛約 1 秒到最高點就炸開（到壽命也炸）
+  const rocket = x => { const h = rnd(H * .45, H * .7), t = 1.05; P.push({ k: 'rocket', x, y: H + 10, px: x, py: H + 10, vx: rnd(-15, 15), vy: -(h / t + 420 * t / 2), g: 420, life: t, age: 0, c: col(), r: 2.2 }); };
+  const stars = (x, y, n = 60) => { for (let i = 0; i < n; i++) { const a = rnd(-Math.PI * .85, -Math.PI * .15), s = rnd(260, 560); P.push({ k: 'star', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, g: 700, life: rnd(1.6, 2.4), age: 0, size: rnd(14, 28), rot: rnd(0, 6), vr: rnd(-4, 4) }); } };
+  const confetti = () => P.push({ k: 'conf', x: rnd(0, W), y: -12, vx: rnd(-30, 30), vy: rnd(70, 140), g: 0, life: 9, age: 0, c: col(), w: rnd(5, 9), h: rnd(8, 14), rot: rnd(0, 6), vr: rnd(-5, 5), ph: rnd(0, 6) });
+  const loop = ts => {
+    if (!alive) return;
+    const dt = Math.min(.05, (ts - (last || ts)) / 1000); last = ts;
+    if (confettiOn) { acc += dt * 9; while (acc > 1) { confetti(); acc--; } }
+    ctx.clearRect(0, 0, W, H);
+    for (let i = P.length - 1; i >= 0; i--) {
+      const p = P[i]; p.age += dt;
+      if (p.age > p.life || p.y > H + 40) { if (p.k === 'rocket') burst(p.x, p.y, p.c); P.splice(i, 1); continue; }
+      p.px = p.x; p.py = p.y; p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.k === 'rocket' && p.vy > -60) { burst(p.x, p.y, p.c); P.splice(i, 1); continue; }
+      const t = 1 - p.age / p.life;
+      ctx.globalCompositeOperation = 'source-over';
+      if (p.k === 'conf') { p.x += Math.sin(p.age * 3 + p.ph) * 40 * dt; p.rot += p.vr * dt; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.globalAlpha = Math.min(1, t * 3); ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore(); }
+      else if (p.k === 'star') { p.rot += p.vr * dt; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.globalAlpha = Math.min(1, t * 2); ctx.fillStyle = '#fff'; ctx.font = `${p.size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(PE, 0, 0); ctx.restore(); }
+      else {   // 煙火的點：畫成從上一格到這一格的短線，看起來有尾巴
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = p.k === 'rocket' ? 1 : Math.min(1, t * 1.6); ctx.strokeStyle = p.c; ctx.lineCap = 'round'; ctx.lineWidth = p.r * 2;
+        ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    raf = requestAnimationFrame(loop);
+  };
+  raf = requestAnimationFrame(loop);
+  return { rocket, burst, stars, confetti: on => { confettiOn = on; }, stop() { alive = false; cancelAnimationFrame(raf); removeEventListener('resize', size); } };
+}
+// 蛋糕（SVG）：n 根蠟燭，每根有火焰和吹熄後的煙
+function cakeSvg(n) {
+  const xs = Array.from({ length: n }, (_, i) => 120 + (i - (n - 1) / 2) * Math.min(28, 150 / Math.max(1, n - 1)));
+  const cols = ['#ff9bd2', '#9ad8ff', '#ffd98a', '#c9b8ff', '#8fd694', '#ffb3a7', '#fff2c4', '#ffd1e8', '#b8e8ff'];
+  const drips = (y, x0, x1, r, c) => { let s = ''; for (let x = x0 + r; x < x1; x += r * 2.6) s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>`; return s; };
+  const sprinkles = Array.from({ length: 16 }, (_, i) => `<rect x="${44 + (i * 37) % 150}" y="${150 + (i * 13) % 26}" width="6" height="2.4" rx="1.2" fill="${cols[i % 5]}" transform="rotate(${(i * 53) % 90} ${47 + (i * 37) % 150} ${151 + (i * 13) % 26})"/>`).join('');
+  return `<svg viewBox="0 0 240 200" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="120" cy="188" rx="110" ry="11" fill="#1d1544"/><ellipse cx="120" cy="184" rx="106" ry="10" fill="#4a3a8a"/>
+    <rect x="34" y="134" width="172" height="48" rx="10" fill="#8a5231"/>
+    <rect x="34" y="128" width="172" height="14" rx="7" fill="#ffb3d9"/>${drips(142, 34, 206, 6, '#ffb3d9')}${sprinkles}
+    <rect x="56" y="98" width="128" height="40" rx="8" fill="#ffd1e8"/>
+    <rect x="56" y="94" width="128" height="12" rx="6" fill="#fff"/>${drips(106, 56, 184, 5, '#fff')}
+    ${xs.map((x, i) => `<g class="candle" data-i="${i}">
+      <rect x="${x - 4}" y="68" width="8" height="30" rx="2" fill="${cols[i % cols.length]}"/>
+      <rect x="${x - 4}" y="76" width="8" height="4" fill="rgba(255,255,255,.55)"/><rect x="${x - 4}" y="88" width="8" height="4" fill="rgba(255,255,255,.55)"/>
+      <line x1="${x}" y1="68" x2="${x}" y2="62" stroke="#3a2a1a" stroke-width="1.6"/>
+      <path class="smoke" d="M${x} 62 c-4 -6 4 -10 0 -16 c-3 -5 3 -8 0 -12" fill="none" stroke="#c9c2e0" stroke-width="2" stroke-linecap="round"/>
+      <g class="flame"><ellipse cx="${x}" cy="55" rx="5.2" ry="9.5" fill="#ffb347"/><ellipse cx="${x}" cy="57.5" rx="2.6" ry="5.2" fill="#fff2c4"/></g>
+    </g>`).join('')}
+  </svg>`;
+}
+async function runBirthday({ preview = false } = {}) {
+  if (bdayActive) return; bdayActive = true;
+  const b = bdayCfg(), n = Math.max(1, Math.min(9, +b.candles || 5)), holdS = Math.max(1, +b.holdSeconds || 5), wait = ms => new Promise(r => setTimeout(r, ms));
+  const ov = document.createElement('div'); ov.className = 'bparty'; ov.innerHTML = '<canvas></canvas><div class="bday-stage"></div>';
+  document.body.appendChild(ov);
+  const stage = $('.bday-stage', ov), fx = bdayFx($('canvas', ov));
+  requestAnimationFrame(() => ov.classList.add('dim'));
+  // 1. 按住蛋糕把蠟燭吹熄（放開會暫停，再按繼續）
+  stage.innerHTML = `<p class="bday-hint">按住蛋糕 ${holdS} 秒，把蠟燭吹熄 🌬️</p><div class="cake">${cakeSvg(n)}</div><div class="bday-hold"><i></i></div>`;
+  const cake = $('.cake', ov), hint = $('.bday-hint', ov), bar = $('.bday-hold i', ov), candles = $$('.candle', ov);
+  await new Promise(res => {
+    let held = false, acc = 0, last = 0, out = 0;
+    const on = e => { e.preventDefault(); held = true; cake.classList.add('hold'); hint.textContent = '呼———'; hint.classList.add('go'); };
+    const off = () => { held = false; cake.classList.remove('hold'); if (out < n) { hint.textContent = `還有 ${n - out} 根，繼續按住 🌬️`; hint.classList.remove('go'); } };
+    cake.addEventListener('pointerdown', on); ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => cake.addEventListener(ev, off));
+    const tick = ts => {
+      if (held) acc += (ts - last) / 1000; last = ts;
+      bar.style.width = `${Math.min(100, acc / holdS * 100)}%`;
+      const should = Math.min(n, Math.floor(acc / holdS * n + 1e-6));
+      while (out < should) candles[out++].classList.add('out');
+      if (out >= n) { hint.textContent = '許個願 ✨'; hint.classList.add('go'); return setTimeout(res, 900); }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(ts => { last = ts; tick(ts); });
+  });
+  // 2. 煙火＋彩帶，打出大字
+  cake.classList.add('away'); $('.bday-hold', ov).style.opacity = 0; hint.style.opacity = 0;
+  const title = document.createElement('h1'); title.className = 'bday-title'; title.textContent = fillTpl(b.title); ov.appendChild(title);
+  fx.confetti(true);
+  const launch = () => fx.rocket(innerWidth * (.15 + Math.random() * .7));
+  for (let i = 0; i < 9; i++) setTimeout(launch, i * 380 + Math.random() * 120);
+  setTimeout(() => title.classList.add('show'), 700);
+  const sparkler = setInterval(launch, 1500);   // 之後零星繼續放
+  await wait(4200);
+  // 3. 小動物們一起把禮物盒搬進來
+  title.classList.add('top');
+  const crew = treeCfg().animals.slice(0, 6);
+  stage.innerHTML = `<p class="bday-hint parade-hint"></p>
+    <div class="parade"><div class="carriers">${crew.slice(0, 3).map(a => animalHtml(a)).join('')}</div><div class="gift"><div class="gbox"></div><div class="lid"></div><div class="bow">🎀</div></div><div class="carriers">${crew.slice(3).map(a => animalHtml(a)).join('')}</div></div>
+    <div class="bday-gain">+<span>0</span> ${PE}</div>
+    <div class="bday-coupon"><div class="ce">${esc(b.giftEmoji || '🎂')}</div><h3>${esc(b.gift)}</h3><p>${esc(b.giftDesc || '')}</p><p>已經放進你的兌換券了</p><button class="btn">收下 💝</button></div>`;
+  const parade = $('.parade', ov), phint = $('.parade-hint', ov), gift = $('.gift', ov);
+  requestAnimationFrame(() => requestAnimationFrame(() => parade.classList.add('in')));
+  await wait(2700);
+  parade.classList.add('arrived', 'ready'); phint.textContent = '小動物們一起搬來的禮物 🎁 點一下盒蓋打開'; phint.style.opacity = 1;
+  await new Promise(res => gift.addEventListener('pointerdown', res, { once: true }));
+  // 4. 打開：星星從盒子裡噴出來，寫入星星和兌換券，通知男友
+  parade.classList.remove('ready'); parade.classList.add('open'); phint.style.opacity = 0;
+  const g = gift.getBoundingClientRect(), gx = g.left + g.width / 2, gy = g.top + 30;
+  fx.stars(gx, gy, 45); fx.burst(gx, gy, '#ffd98a', 50);
+  setTimeout(() => fx.stars(gx, gy, 25), 450); setTimeout(() => fx.stars(gx, gy, 15), 900);
+  if (!preview) {
+    if (!S.bday) S.bday = {};
+    S.bday[bdayYear()] = { t: Date.now(), done: true };
+    S.coupons.unshift({ id: uid(), name: b.gift, emoji: b.giftEmoji || '🎂', source: '生日', t: Date.now(), used: false });
+    log('🎂', `生日禮物：「${b.gift}」`);
+    if (+b.stars > 0) addPoints(+b.stars, '🎂', `生日禮物 +${+b.stars} 顆${PN}`); else save();
+    notify({ title: `🎂 ${C.herName} 打開生日驚喜了`, message: `蠟燭吹熄、禮物拆開，收到 ${+b.stars || 0} 顆${PN}和「${b.gift}」\n${fmtTime(Date.now())}`, tags: ['birthday'], priority: 4 });
+  }
+  const gain = $('.bday-gain', ov), gnum = $('span', gain), total = +b.stars || 0; gain.classList.add('show');
+  await new Promise(res => { let t0 = 0; const step = now => { if (!t0) t0 = now; const k = Math.min(1, (now - t0) / 1400); gnum.textContent = Math.round(total * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); else res(); }; requestAnimationFrame(step); });
+  await wait(500);
+  const cp = $('.bday-coupon', ov); cp.classList.add('show');
+  await new Promise(res => { $('.btn', cp).onclick = res; });
+  clearInterval(sparkler); fx.confetti(false);
+  ov.style.transition = 'opacity .6s'; ov.style.opacity = 0;
+  await wait(650); fx.stop(); ov.remove(); bdayActive = false;
+  if (preview) toast('預演結束，沒有真的送星星和兌換券');
+  else if (render[current] && !game.key) render[current]();
+}
+
 /* ================= 管理模式（連點月亮 5 下） ================= */
 let moonTaps = 0, moonTimer;
 function moonTap(e) {
@@ -1819,7 +2008,7 @@ async function admin() {
     title: '🛠 管理模式',
     html: `<p class="left muted small">ntfy：${hasTopic() ? `已設定（${esc(C.ntfy.topic)}）` : '⚠️ 還沒設定 topic，收不到通知'}<br>等待送出的通知：${S.outbox.length} 則<br>回信後台：${hasBackend() ? `已設定（${esc(backendCfg().url)}）` : '未設定（看 backend/README.md）'}</p>
            <input class="input" name="pts" type="number" inputmode="numeric" placeholder="加幾顆${PN}？（負數是扣）">`,
-    buttons: [{ text: `加 / 扣${PN}`, primary: true }, { text: '重置今天的次數' }, { text: '測試通知' }, { text: '召喚偷星怪客' }, { text: '回信給樹洞 📨' }, { text: '清除全部資料', danger: true }, { text: '關閉' }]
+    buttons: [{ text: `加 / 扣${PN}`, primary: true }, { text: '重置今天的次數' }, { text: '測試通知' }, { text: '召喚偷星怪客' }, { text: '回信給樹洞 📨' }, { text: '預演生日 🎂' }, { text: '清除全部資料', danger: true }, { text: '關閉' }]
   });
   if (b.i === 0) {
     const n = parseInt(b.values.pts, 10);
@@ -1842,6 +2031,8 @@ async function admin() {
   } else if (b.i === 4) {
     return adminReply();
   } else if (b.i === 5) {
+    return runBirthday({ preview: true });
+  } else if (b.i === 6) {
     const c = await modal({ icon: '⚠️', title: '確定清除全部資料？', html: `<p>${PN}、兌換券、許願紀錄都會歸零，沒辦法復原。</p>`, buttons: [{ text: '取消' }, { text: '清除', danger: true }] });
     if (c.i === 1) { try { localStorage.removeItem(STORE_KEY); } catch (e) {} location.reload(); return; }
   }
@@ -1867,6 +2058,7 @@ document.addEventListener('visibilitychange', async () => {
   flushOutbox();
   if (dayKey() !== lastDay) { lastDay = dayKey(); if (!game.key && render[current]) render[current](); }
   if (birthdayDays() === 0) maxStat('birthday', 1);
+  if (bdayPending() && !game.key && !$('.modal-bg:not(.out)')) { await runBirthday(); await checkin(); await syncBackend(); await deliverReplies(); return; }   // 跨過午夜進入生日
   if (await checkin()) return;   // 剛簽到就先不叫怪客出來
   await syncBackend();
   if (await deliverReplies()) return;
@@ -1889,11 +2081,12 @@ flushOutbox();
     setTimeout(() => sparkle(innerWidth / 2, innerHeight * .3, 120), 500);
   }
   if (birthdayDays() === 0) maxStat('birthday', 1);
+  const partied = bdayPending() ? (await runBirthday(), true) : false;   // 生日當天第一次打開：先演生日驚喜
   const signed = await checkin();
   await syncBackend();
   const delivered = await deliverReplies();
   checkBadges();
-  if (!firstOpen && !signed && !delivered) setTimeout(maybeThief, 900);   // 第一次打開或剛簽到就不叫怪客
+  if (!firstOpen && !signed && !delivered && !partied) setTimeout(maybeThief, 900);   // 第一次打開、剛簽到或剛過完生日就不叫怪客
 })();
 })();
 </script>

@@ -60,6 +60,7 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
     leaves: [{id, t, mood, text, sent, replied}],          // 樹洞葉子（sent 由 markSent 透過 leafId 標記）
     replies: [{id, leafId, animal:{emoji,name}, text, t, delivered}],  // 男友在管理模式寫的回信
     skyComplete: 0,                                        // 星圖全亮彩蛋觸發時間（只送一次）
+    bday: { '2026': {t, done} },                           // 生日驚喜每年演一次，拆完禮物才算 done
     welcomed, hideA2hs
   }
   ```
@@ -76,6 +77,7 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
 - **樹洞回信**：男友在**她的手機**進管理模式按「回信給樹洞」→ `adminReply()` 三步：選葉子、選小動物、寫信（`modal` 的 `onOpen(bg, close)` 讓列表按鈕可以直接關閉彈窗），存進 `S.replies`。`deliverReplies()` 在啟動與回前景時（簽到之後、怪客之前）把未送達的回信用小動物叼信的彈窗顯示，標記 `delivered`，樹洞列表會在該葉子下方顯示回信。
 - **回信後台同步**：`config.backend.url/appKey` 有設時，`syncBackend()` 在啟動、回前景、online、放葉子後執行：POST 未同步葉子（`leaf.synced`）、POST 已送達回報（`reply.acked`）、GET 新回信（標 `remote: true` 存進 `S.replies`）。之後 `deliverReplies()` 照常顯示；遠端回信送達時會 ntfy 通知男友並回報後台。所有請求 8 秒逾時、失敗就下次再試，不影響 App 運作。
 - **星圖全亮彩蛋**：`maybeSkyComplete()` 由 `showBadgeQueue` 在佇列清空時呼叫；全部成就解鎖且 `S.skyComplete` 未設時，送 `config.skyComplete.reward` 兌換券（source `成就`）、顯示信件彈窗（`skySvg()` 加 `.cmap.alive` 動畫）。成就頁全亮時也會套 `alive` 並顯示信件卡。
+- **生日驚喜**：`config.birthdayParty`（`bdayCfg()` 有預設）。生日當天（`birthdayDays() === 0`）且 `S.bday[年份].done` 未設時，啟動流程在歡迎畫面之後、簽到之前 `await runBirthday()`；`visibilitychange` 回前景也會檢查（跨午夜）。流程全在一個 `.bparty` 全螢幕 overlay（z-index 95，`bdayActive` 期間怪客與成就彈窗不出現）：`cakeSvg()` 蛋糕、按住 `holdSeconds` 秒逐根吹熄（用 rAF 時間戳計時，放開會暫停）→ `bdayFx()` canvas 粒子（煙火 rocket/burst、彩帶 confetti、星星 stars）＋大字 → 前 6 隻 `treeCfg().animals` 搬禮物盒進場（`.parade`）→ 點盒蓋：**先寫 state**（`S.bday`、兌換券 source `生日`、`addPoints(stars)`、ntfy 通知男友）再播星星噴出與計數 → 兌換券卡片「收下」。管理模式「預演生日」= `runBirthday({preview:true})`，不寫 state 也不通知。
 - **首頁訊息模板**：`fillTpl()` 會把 `{第幾天}`、`{生日倒數}`、`{名字}` 換成實際值；生日當月且有 `config.birthMonthMessage` 時，「給你的話」卡片改顯示它。
 - **管理模式**：在首頁連點月亮 5 下，輸入 `config.adminCode`。可以加減星星、重置今日次數（含怪客、簽到）、測試通知、召喚偷星怪客、回信給樹洞、清除資料。
 - **特效**：背景星空用 `#sky` canvas，持續播放，分頁隱藏時暫停；慶祝特效 `sparkle()` 畫在 `#fx` canvas 上。

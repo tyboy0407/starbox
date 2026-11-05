@@ -152,6 +152,7 @@ async def run():
       await clear_modals()
       await pg.click('[data-use]'); await pg.wait_for_timeout(300); await pg.click('.modal-bg .btn >> nth=1'); await pg.wait_for_timeout(500)
     # 用管理模式加 1000 顆，測命運骰子和刮刮樂
+    await pg.wait_for_timeout(600); await clear_modals()   # 用券後可能跳成就彈窗，先關掉
     await pg.click('.tab[data-page=home]'); await pg.wait_for_timeout(300)
     for _ in range(5): await pg.click('#moon')
     await pg.wait_for_timeout(400); await pg.fill('.modal-bg input[name=code]',re.search(r'adminCode:\s*"([^"]+)"',cfg).group(1)); await pg.click('.modal-bg [data-i="1"]'); await pg.wait_for_timeout(400)
@@ -238,6 +239,20 @@ async def run():
     await ad.close()
     await pg.click('.tab[data-page=home]'); await pg.wait_for_timeout(400)
     await pg.screenshot(path=f'{OUT}/19-home-after.png',full_page=True)
+    # 生日驚喜（管理模式的「預演生日」）：按住蛋糕吹蠟燭 → 煙火 → 小動物搬禮物 → 點開 → 收下
+    await clear_modals()
+    for _ in range(5): await pg.click('#moon')
+    await pg.wait_for_timeout(400); await pg.fill('.modal-bg input[name=code]',re.search(r'adminCode:\s*"([^"]+)"',cfg).group(1)); await pg.click('.modal-bg [data-i="1"]'); await pg.wait_for_timeout(400)
+    await pg.click('.modal-bg [data-i="5"]'); await pg.wait_for_timeout(1500)
+    box=await pg.locator('.cake').bounding_box()
+    await pg.mouse.move(box['x']+box['width']/2,box['y']+box['height']/2); await pg.mouse.down(); await pg.wait_for_timeout(5800); await pg.mouse.up()
+    await pg.wait_for_timeout(2500); await pg.screenshot(path=f'{OUT}/21-bday-fireworks.png')
+    await pg.wait_for_timeout(5000)
+    gb=await pg.locator('.gift').bounding_box(); await pg.mouse.click(gb['x']+gb['width']/2,gb['y']+gb['height']/2)
+    await pg.wait_for_timeout(1200); await pg.screenshot(path=f'{OUT}/22-bday-gift.png')
+    await pg.wait_for_timeout(2500); await pg.locator('.bday-coupon .btn').click(force=True); await pg.wait_for_timeout(1200)
+    st=await pg.evaluate('JSON.parse(localStorage.starbox_v1)')
+    print('bday preview done; overlay gone:',await pg.evaluate("!document.querySelector('.bparty')"),'coupons unchanged:',[c['name'] for c in st['coupons']])
     # badges page
     await pg.click('[data-go=badges]'); await pg.wait_for_timeout(500)
     await pg.screenshot(path=f'{OUT}/20-badges.png',full_page=True)
