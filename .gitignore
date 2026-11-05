@@ -4,3 +4,5 @@ __pycache__/
 .claude/
 backend/wrangler.toml
 backend/.wrangler/
+assets/animals/*.jpg
+assets/animals/*.jpeg

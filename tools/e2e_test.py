@@ -13,8 +13,8 @@ cfg=re.sub(r'topic: "[^"]*",','topic: "test-topic",',cfg,count=1)
 cfg=re.sub(r'chance: [\d.]+,','chance: 0,',cfg,count=1)   # 一般流程不讓偷星怪客隨機跳出，後面另外測
 BACKEND='http://127.0.0.1:8787'          # 本機模擬的 Worker
 BACKEND_URL='http://localhost/api'        # 頁面看到的後台網址（同源，由 Playwright 轉送到 BACKEND，避開 Chrome 的本機網路權限）
-cfg=re.sub(r'url: "",(\s*// Worker 網址)',f'url: "{BACKEND_URL}",\\1',cfg,count=1)
-cfg=re.sub(r'appKey: "",','appKey: "dev-app-key",',cfg,count=1)
+cfg=re.sub(r'url: "[^"]*",(\s*// Worker 網址)',f'url: "{BACKEND_URL}",\\1',cfg,count=1)
+cfg=re.sub(r'appKey: "[^"]*",','appKey: "dev-app-key",',cfg,count=1)
 async def main():
   backend=subprocess.Popen([ 'node', str(pathlib.Path(APP)/'tools'/'dev_backend.mjs'), '8787'])
   for _ in range(40):

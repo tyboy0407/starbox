@@ -147,7 +147,7 @@ h2,h3,h4,p{margin:0}
 .pick-grid .pick{text-align:center;padding:10px 2px 8px;font-size:26px;line-height:1.2;margin:0}
 .pick-grid .pick small{font-size:11px;margin-top:2px}
 .pick-grid .pick.dim{opacity:.45}
-.courier{font-size:58px;display:inline-block;animation:courierHop .9s ease-in-out infinite}
+.courier{font-size:58px;display:inline-block;animation:courierHop .9s ease-in-out infinite;transform-origin:50% 100%}
 @keyframes courierHop{50%{transform:translateY(-8px) rotate(-6deg)}}
 .quote{background:rgba(255,255,255,.06);border-left:3px solid var(--violet);border-radius:10px;padding:10px 12px;text-align:left;font-size:14px;color:var(--muted);white-space:pre-wrap;word-break:break-word;max-height:110px;overflow:auto}
 .letter-text{text-align:left;line-height:1.8;white-space:pre-wrap;word-break:break-word;margin-top:10px;max-height:240px;overflow:auto;-webkit-user-select:text;user-select:text}
@@ -328,6 +328,15 @@ textarea.wish::placeholder{color:rgba(185,175,219,.6)}
 .tree-scene svg{width:100%;height:auto;display:block;overflow:visible}
 .tree-scene .animal{font-size:22px;transform-box:fill-box;transform-origin:50% 100%;animation:animalBob 3.2s ease-in-out infinite;cursor:pointer}
 @keyframes animalBob{50%{transform:translateY(-3px)}}
+/* Q 版圖片的小動物：待機時輕輕呼吸浮動，點一下會蹦起來 */
+.tree-scene image.animal{animation:animalIdle 3.4s ease-in-out infinite;filter:drop-shadow(0 3px 4px rgba(0,0,0,.45))}
+@keyframes animalIdle{50%{transform:translateY(-3px) scale(.985,1.03)}}
+.tree-scene .animal.jump{animation:animalJump .62s cubic-bezier(.3,1.3,.5,1) 1}
+@keyframes animalJump{0%{transform:scale(1.15,.82)}40%{transform:translateY(-18px) scale(.94,1.1) rotate(-6deg)}72%{transform:translateY(0) scale(1.12,.88)}100%{transform:none}}
+.a-img{width:44px;height:44px;object-fit:contain;display:inline-block;vertical-align:middle;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+span.a-img{font-size:26px;line-height:44px;text-align:center}
+.a-img.a-sm{width:24px;height:24px;font-size:16px;line-height:24px;filter:none}
+.a-img.a-lg{width:84px;height:84px;font-size:58px;line-height:84px}
 .tree-scene .firefly{animation:twinkle 2.4s ease-in-out infinite}
 .tree-scene .hole-hit{cursor:pointer}
 .moods{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
@@ -1541,7 +1550,7 @@ const DEFAULT_ANIMALS = [
   { count: 30, emoji: '🦊', name: '狐狸' }, { count: 40, emoji: '🦋', name: '蝴蝶' }, { count: 55, emoji: '🐻', name: '小熊' }, { count: 70, emoji: '🐼', name: '貓熊' },
 ];
 // 小動物在場景裡的位置（SVG 座標，依 animals 的順序使用）
-const ANIMAL_SPOTS = [[114, 136], [150, 236], [92, 248], [228, 244], [254, 110], [288, 218], [46, 254], [182, 34], [330, 250], [180, 150]];
+const ANIMAL_SPOTS = [[114, 136], [150, 236], [92, 248], [228, 244], [254, 110], [288, 218], [46, 254], [182, 40], [330, 250], [180, 150]];
 function treeCfg() {
   const t = Object.assign({ enabled: true, tabName: '樹洞', title: '綿綿樹洞', intro: '躲進樹洞裡，把心情寫在葉子上放進去', avatar: '🐑', notify: true }, C.tree || {});
   t.moods = (Array.isArray(t.moods) && t.moods.length ? t.moods : DEFAULT_MOODS).filter(m => m && m.key);
@@ -1550,8 +1559,19 @@ function treeCfg() {
 }
 const moodOf = key => treeCfg().moods.find(m => m.key === key) || { key, label: '', emoji: '🍃', color: '#8fd694' };
 const animalsFor = n => treeCfg().animals.filter(a => n >= (+a.count || 0));
+// 回信裡只存 {emoji, name}（舊資料、後台來的都是），用名字或 emoji 對回 config 裡的那隻，才拿得到圖片
+const animalOf = a => { if (!a) return null; const list = treeCfg().animals; return list.find(x => x.name && x.name === a.name) || list.find(x => x.emoji === a.emoji) || a; };
+// 小動物圖示：有 image 就用圖片（載入失敗退回 emoji），沒有就用 emoji。cls 可給 a-sm / a-lg 調大小
+function animalHtml(a, cls = '') {
+  a = animalOf(a) || {};
+  const e = esc(a.emoji || '🐾');
+  if (a.image) return `<img class="a-img ${cls}" src="${esc(a.image)}" alt="${e}" data-e="${e}" draggable="false" onerror="this.outerHTML=this.dataset.e">`;
+  return `<span class="a-img ${cls}">${e}</span>`;
+}
+// 先把圖片載進快取，小動物第一次出現（或叼信來）時才不會閃一下
+setTimeout(() => treeCfg().animals.forEach(a => { if (a.image) new Image().src = a.image; if (a.blink) new Image().src = a.blink; }), 2500);
 const LEAF_SVG = (c, extra = '') => `<svg viewBox="0 0 36 36" ${extra}><path d="M18 2C30 8 34 22 18 34C2 22 6 8 18 2Z" fill="${c}"/><path d="M18 7V30" stroke="rgba(0,0,0,.28)" stroke-width="1.6" stroke-linecap="round"/></svg>`;
-let leafMood = null, treeShowAll = false;
+let leafMood = null, treeShowAll = false, blinkTimer = 0;
 function treeSceneSvg() {
   const t = treeCfg(), n = (S.leaves || []).length, animals = animalsFor(n);
   const pile = (S.leaves || []).slice(0, 7);
@@ -1586,7 +1606,11 @@ function treeSceneSvg() {
       <text x="180" y="${pile.length ? 188 : 194}" text-anchor="middle" font-size="22">${esc(t.avatar || '🐑')}</text>
     </g>
     <g><rect x="160" y="228" width="40" height="16" rx="8" fill="rgba(7,7,32,.55)"/><text x="180" y="240" text-anchor="middle" font-size="10" fill="#ffd98a">🍃 ${n}</text></g>
-    ${animals.map((a, i) => { const [x, y] = ANIMAL_SPOTS[i] || ANIMAL_SPOTS[ANIMAL_SPOTS.length - 1]; return `<text class="animal" data-a="${i}" x="${x}" y="${y}" text-anchor="middle" style="animation-delay:${(i * .7) % 3}s" font-size="${i === 5 || i === 8 ? 26 : 22}">${esc(a.emoji)}</text>`; }).join('')}
+    ${animals.map((a, i) => {
+      const [x, y] = ANIMAL_SPOTS[i] || ANIMAL_SPOTS[ANIMAL_SPOTS.length - 1], big = i === 5 || i === 8, delay = `animation-delay:${(i * .7) % 3}s`;
+      if (a.image) { const w = big ? 54 : 46; return `<image class="animal" data-a="${i}" href="${esc(a.image)}" x="${x - w / 2}" y="${y + 4 - w}" width="${w}" height="${w}" style="${delay}"/>`; }
+      return `<text class="animal" data-a="${i}" x="${x}" y="${y}" text-anchor="middle" style="${delay}" font-size="${big ? 26 : 22}">${esc(a.emoji)}</text>`;
+    }).join('')}
   </svg>`;
 }
 render.tree = () => {
@@ -1607,7 +1631,7 @@ render.tree = () => {
         ${n > 5 ? `<div class="center" style="margin-top:10px"><button class="btn ghost" id="leafMore">${treeShowAll ? '收起來' : `看全部 ${n} 片`}</button></div>` : ''}` : '<div class="empty">樹洞還是空的，寫下第一片葉子吧 🍃</div>'}
     </div>
     <div class="card"><h4>來作伴的小動物 <span class="muted small">（${unlocked.length} / ${t.animals.length}）</span></h4>
-      <div class="animals">${t.animals.map(a => { const on = n >= (+a.count || 0); return `<div class="ani ${on ? 'on' : 'off'}"><div class="a-e">${esc(a.emoji)}</div><div>${on ? esc(a.name || '') : `${+a.count || 0} 片`}</div></div>`; }).join('')}</div>
+      <div class="animals">${t.animals.map(a => { const on = n >= (+a.count || 0); return `<div class="ani ${on ? 'on' : 'off'}"><div class="a-e">${animalHtml(a)}</div><div>${on ? esc(a.name || '') : `${+a.count || 0} 片`}</div></div>`; }).join('')}</div>
       <p class="muted small center" style="margin-top:10px">葉子越多，越多小動物會來樹洞旁休息、喝水</p>
     </div>`;
   const ta = $('#leafText');
@@ -1616,7 +1640,20 @@ render.tree = () => {
   $$('.mood', $('#p-tree')).forEach(b => b.onclick = () => { leafMood = b.dataset.k; $$('.mood', $('#p-tree')).forEach(x => x.classList.toggle('on', x === b)); });
   const more = $('#leafMore'); if (more) more.onclick = () => { treeShowAll = !treeShowAll; render.tree(); };
   $('#holeTarget').onclick = () => $('#leafList').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  $$('.animal', $('#p-tree')).forEach(el => el.onclick = () => { const a = unlocked[+el.dataset.a]; if (a) toast(`${a.emoji} ${a.name || ''}在樹洞旁休息中`); });
+  $$('.animal', $('#p-tree')).forEach(el => el.onclick = () => {
+    const a = unlocked[+el.dataset.a]; if (!a) return;
+    el.classList.remove('jump'); el.getBoundingClientRect(); el.classList.add('jump');
+    el.addEventListener('animationend', () => el.classList.remove('jump'), { once: true });
+    toast(`${a.emoji} ${a.name || ''}在樹洞旁休息中`);
+  });
+  // 有 blink（閉眼版圖片）的小動物每隔幾秒隨機一隻眨眼
+  clearInterval(blinkTimer);
+  const blinkers = unlocked.map((a, i) => ({ a, el: $(`.animal[data-a="${i}"]`, $('#p-tree')) })).filter(b => b.a.image && b.a.blink && b.el);
+  if (blinkers.length) blinkTimer = setInterval(() => {
+    if (!document.body.contains(blinkers[0].el)) return clearInterval(blinkTimer);
+    const b = blinkers[Math.floor(Math.random() * blinkers.length)];
+    b.el.setAttribute('href', b.a.blink); setTimeout(() => b.el.setAttribute('href', b.a.image), 170);
+  }, 2400);
 };
 // 葉子從畫面下方飛進樹洞
 function flyLeaf(color) {
@@ -1708,7 +1745,7 @@ async function syncBackend() {
 /* ================= 樹洞回信（男友在管理模式派小動物送信） ================= */
 const repliesOf = leafId => (S.replies || []).filter(r => r.leafId === leafId && r.delivered);
 function replyHtml(l) {
-  return repliesOf(l.id).map(r => `<div class="reply"><b>${esc(r.animal.emoji)} ${esc(r.animal.name || '小動物')}帶來${esc(C.fromName)}的回信 · ${fmtTime(r.t)}</b>${esc(r.text)}</div>`).join('');
+  return repliesOf(l.id).map(r => `<div class="reply"><b>${animalHtml(r.animal, 'a-sm')} ${esc(r.animal.name || '小動物')}帶來${esc(C.fromName)}的回信 · ${fmtTime(r.t)}</b>${esc(r.text)}</div>`).join('');
 }
 async function adminReply() {
   const leaves = (S.leaves || []);
@@ -1727,7 +1764,7 @@ async function adminReply() {
   let animal = null;
   await modal({
     title: '🐾 派哪隻小動物去送信？',
-    html: `<div class="pick-grid">${t.animals.map((a, i) => `<button class="pick ${n >= (+a.count || 0) ? '' : 'dim'}" data-i="${i}">${esc(a.emoji)}<small>${esc(a.name || '')}</small></button>`).join('')}</div><p class="muted small" style="margin-top:8px">暗的是她還沒遇過的動物，也可以派</p>`,
+    html: `<div class="pick-grid">${t.animals.map((a, i) => `<button class="pick ${n >= (+a.count || 0) ? '' : 'dim'}" data-i="${i}">${animalHtml(a)}<small>${esc(a.name || '')}</small></button>`).join('')}</div><p class="muted small" style="margin-top:8px">暗的是她還沒遇過的動物，也可以派</p>`,
     buttons: [{ text: '取消' }],
     onOpen(bg, close) { $$('.pick', bg).forEach(b => b.onclick = () => { animal = t.animals[+b.dataset.i]; close(1); }); }
   });
@@ -1753,7 +1790,7 @@ async function deliverReplies() {
     const leaf = (S.leaves || []).find(l => l.id === r.leafId);
     sparkle(innerWidth / 2, innerHeight * .3, 80);
     await modal({
-      icon: `<span class="courier">${esc(r.animal.emoji)}</span> 💌`, title: `${esc(r.animal.name || '小動物')}叼著一封信來找你`, dismiss: false,
+      icon: `<span class="courier">${animalHtml(r.animal, 'a-lg')}</span> 💌`, title: `${esc(r.animal.name || '小動物')}叼著一封信來找你`, dismiss: false,
       html: `${leaf ? `<p class="muted small" style="margin-bottom:6px">你寫的葉子：</p><div class="quote">${esc(moodOf(leaf.mood).emoji)} ${esc(leaf.text)}</div>` : ''}<p class="muted small" style="margin:10px 0 0">${esc(C.fromName)}的回信：</p><div class="letter-text">${nl2br(r.text)}</div>`,
       buttons: [{ text: '收下 💌', primary: true }]
     });

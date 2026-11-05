@@ -43,6 +43,7 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .animals{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .ani{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 2px 8px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:11px;color:var(--muted)}
 .ani .e{font-size:26px;line-height:1.2}
+.ani .e img{width:44px;height:44px;object-fit:contain;display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
 .ani.on{border-color:var(--gold);background:rgba(255,217,138,.14);color:var(--text)}
 .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
 .toast{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);opacity:0;background:rgba(44,26,94,.95);border:1px solid var(--line);padding:11px 18px;border-radius:999px;font-size:14px;transition:.25s;white-space:nowrap;z-index:50}
@@ -131,7 +132,7 @@ function render() {
   document.querySelectorAll('.leaf').forEach(b => b.onclick = () => { pickedLeaf = pickedLeaf === b.dataset.id ? null : b.dataset.id; render(); if (pickedLeaf) $('#compose').scrollIntoView({ behavior: 'smooth' }); });
   const target = leaves.find(l => l.id === pickedLeaf);
   $('#target').textContent = target ? `回「${target.text.slice(0, 14)}${target.text.length > 14 ? '…' : ''}」` : '一般的信（不指定葉子）';
-  $('#animals').innerHTML = T.animals.map((a, i) => `<button class="ani ${i === pickedAnimal ? 'on' : ''}" data-i="${i}"><div class="e">${esc(a.emoji)}</div>${esc(a.name || '')}</button>`).join('');
+  $('#animals').innerHTML = T.animals.map((a, i) => `<button class="ani ${i === pickedAnimal ? 'on' : ''}" data-i="${i}"><div class="e">${a.image ? `<img src="${esc(a.image)}" alt="${esc(a.emoji)}" data-e="${esc(a.emoji)}" onerror="this.outerHTML=this.dataset.e">` : esc(a.emoji)}</div>${esc(a.name || '')}</button>`).join('');
   document.querySelectorAll('.ani').forEach(b => b.onclick = () => { pickedAnimal = +b.dataset.i; render(); });
   const pending = replies.filter(r => !r.delivered);
   $('#pending').innerHTML = pending.length ? pending.map(r => `<div class="leaf"><div class="l-head"><span>${esc(r.animal.emoji)} ${esc(r.animal.name)} · ${fmt(r.t)}</span><button class="btn ghost sm" data-del="${esc(r.id)}">收回</button></div><div class="l-text">${esc(r.text)}</div></div>`).join('') : '<div class="empty">沒有待送達的信，她都收到了 💌</div>';

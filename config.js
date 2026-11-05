@@ -69,17 +69,19 @@ window.APP_CONFIG = {
       { key: "angry", label: "生氣", emoji: "😤", color: "#ff9b8a" },
     ],
     // 小動物：樹洞裡的葉子累積到 count 片就會出現（最多 10 隻，依順序安排在樹旁不同位置）
+    // image 是 Q 版圖片（放在 assets/animals/，用 tools/cutout.py 去背）；沒有 image 或圖片載入失敗時會顯示 emoji。
+    // blink 是選配的閉眼版圖片，有的話小動物會偶爾眨眼。emoji 仍會用在通知文字裡，不要拿掉。
     animals: [
-      { count: 1,  emoji: "🐦", name: "小鳥" },
-      { count: 3,  emoji: "🐿️", name: "松鼠" },
-      { count: 6,  emoji: "🐰", name: "小兔" },
-      { count: 10, emoji: "🦔", name: "刺蝟" },
-      { count: 15, emoji: "🦉", name: "貓頭鷹" },
-      { count: 20, emoji: "🦌", name: "小鹿" },
-      { count: 30, emoji: "🦊", name: "狐狸" },
-      { count: 40, emoji: "🦋", name: "蝴蝶" },
-      { count: 55, emoji: "🐻", name: "小熊" },
-      { count: 70, emoji: "🐼", name: "貓熊" },
+      { count: 1,  emoji: "🐦", name: "小鳥",   image: "assets/animals/bird.png" },
+      { count: 3,  emoji: "🐿️", name: "松鼠",   image: "assets/animals/squirrel.png" },
+      { count: 6,  emoji: "🐰", name: "小兔",   image: "assets/animals/rabbit.png" },
+      { count: 10, emoji: "🦔", name: "刺蝟",   image: "assets/animals/hedgehog.png" },
+      { count: 15, emoji: "🦉", name: "貓頭鷹", image: "assets/animals/owl.png" },
+      { count: 20, emoji: "🦌", name: "小鹿",   image: "assets/animals/deer.png" },
+      { count: 30, emoji: "🦊", name: "狐狸",   image: "assets/animals/fox.png" },
+      { count: 40, emoji: "🦋", name: "蝴蝶",   image: "assets/animals/butterfly.png" },
+      { count: 55, emoji: "🐻", name: "小熊",   image: "assets/animals/bear.png" },
+      { count: 70, emoji: "🐼", name: "貓熊",   image: "assets/animals/panda.png" },
     ],
   },
 

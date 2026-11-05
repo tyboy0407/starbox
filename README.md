@@ -37,7 +37,7 @@
 - `wheel.prizes`：輪盤獎賞，`weight` 越大越容易中；填了 `points` 就是直接加星星
 - `shop`：兌換品與價格
 - `games.quiz.questions`：**範例題目一定要換成你們的**，`answer` 是正確選項的位置（從 0 開始數）
-- `tree`：樹洞的心情選項與小動物出現門檻
+- `tree`：樹洞的心情選項與小動物出現門檻。小動物的 Q 版圖片放在 `assets/animals/`，想換圖就把白底圖存成 `assets/animals/小鳥.jpg` 這種中文檔名，再跑 `python3 tools/cutout.py --animals` 去背（提示詞在 `assets/animals/PROMPTS.md`）
 - `checkin.rewards`：連續簽到第 1～7 天各送幾顆星星
 - `badges`：成就清單，`type` 和 `goal` 決定怎麼達成（註解有列出可用的種類）
 - `adminCode`：管理模式密碼

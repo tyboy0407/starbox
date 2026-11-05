@@ -26,6 +26,8 @@ manifest.webmanifest  PWA manifest
 icon-180/192/512.png  主畫面圖示（tools/make_icons.py 產生）
 README.md             給使用者看的部署與設定教學（繁中）
 assets/thief.png      偷星怪客的去背圖（config.thief.image）
+assets/animals/*.png  樹洞小動物的 Q 版去背圖（config.tree.animals[].image）；PROMPTS.md 是生圖提示詞；原始 .jpg 已 gitignore
+tools/cutout.py       白底圖去背成透明 PNG：python3 tools/cutout.py --animals（處理 assets/animals/*.jpg → 英文檔名 .png）
 admin.html            男友的回信後台（獨立頁面，讀 config.js 取 moods/animals，連 Cloudflare Worker）
 backend/worker.js     Cloudflare Worker：葉子／回信的小信箱 API（KV 綁定 MAIL、變數 APP_KEY、Secret ADMIN_SECRET）
 backend/README.md     給使用者的 Cloudflare 設定教學
@@ -70,7 +72,7 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
 - **偷星怪客**：`maybeThief()` 在啟動（非首次）和 `visibilitychange` 回前景時依 `config.thief.chance` 擲骰，受 `maxPerDay`、`minPoints` 限制，遊戲中或已有彈窗時不出現。`thiefAttack(q)` 用 `modal({onOpen})` 顯示一題（有 `thief.image` 時圖示用 `<img>`，答對滑走、答錯彈跳）（題庫預設共用 `games.quiz.questions`，`thief.questions` 可覆蓋），答對只記錄、答錯 `addPoints(-steal)`。
 - **連續簽到**：`checkin()` 在啟動和 `visibilitychange` 回前景時呼叫，一天一次，依 `config.checkin.rewards` 送星星（超過陣列長度就用最後一個值），斷一天從第 1 天重來。剛簽到的那次不叫偷星怪客。
 - **成就徽章**：`config.badges`（缺少時用 `DEFAULT_BADGES`），每個有 `type/goal`，進度由 `badgeProgress()` 算（部分從 `S.stats` 累計，用 `addStat()/maxStat()` 更新；spins/wishes 直接數現有資料）。`checkBadges()` 在輪盤、遊戲結束、兌換、許願、怪客、簽到後呼叫，新解鎖的排進 `badgeQueue`，`showBadgeQueue()` 只在沒彈窗、沒遊戲時顯示（`modal` 關閉與 `closeGame` 都會再觸發）。`render.badges` 是沒有 tab 的頁面（`#p-badges`），從首頁的入口卡進入，用 SVG 畫天蠍座 15 顆星（`SCORPIO`），第 5 顆是心宿二。
-- **綿綿樹洞**：`treeCfg()` 合併 `config.tree`（moods、animals 有預設）；`treeSceneSvg()` 畫場景，小動物依 `animals` 排序後對應 `ANIMAL_SPOTS` 位置；`submitLeaf()` 寫入 `S.leaves`、`flyLeaf()` 飛葉動畫、`notify({leafId})` 推播，新出現的小動物用 modal 宣布。樹洞分頁在啟動時依 `tree.enabled/tabName` 調整。
+- **綿綿樹洞**：`treeCfg()` 合併 `config.tree`（moods、animals 有預設）；`treeSceneSvg()` 畫場景，小動物依 `animals` 排序後對應 `ANIMAL_SPOTS` 位置（有 `image` 就畫 SVG `<image>`，CSS `animalIdle` 浮動、點一下加 `.jump`；有 `blink` 會定時換圖眨眼；沒有 image 退回 emoji `<text>`）；`animalHtml(a, cls)` 給卡片、回信列表、送信彈窗用（`<img>` 載入失敗 onerror 退回 emoji），`animalOf()` 用 name/emoji 把回信裡的 `{emoji,name}` 對回 config 那隻；`submitLeaf()` 寫入 `S.leaves`、`flyLeaf()` 飛葉動畫、`notify({leafId})` 推播，新出現的小動物用 modal 宣布。樹洞分頁在啟動時依 `tree.enabled/tabName` 調整。
 - **樹洞回信**：男友在**她的手機**進管理模式按「回信給樹洞」→ `adminReply()` 三步：選葉子、選小動物、寫信（`modal` 的 `onOpen(bg, close)` 讓列表按鈕可以直接關閉彈窗），存進 `S.replies`。`deliverReplies()` 在啟動與回前景時（簽到之後、怪客之前）把未送達的回信用小動物叼信的彈窗顯示，標記 `delivered`，樹洞列表會在該葉子下方顯示回信。
 - **回信後台同步**：`config.backend.url/appKey` 有設時，`syncBackend()` 在啟動、回前景、online、放葉子後執行：POST 未同步葉子（`leaf.synced`）、POST 已送達回報（`reply.acked`）、GET 新回信（標 `remote: true` 存進 `S.replies`）。之後 `deliverReplies()` 照常顯示；遠端回信送達時會 ntfy 通知男友並回報後台。所有請求 8 秒逾時、失敗就下次再試，不影響 App 運作。
 - **星圖全亮彩蛋**：`maybeSkyComplete()` 由 `showBadgeQueue` 在佇列清空時呼叫；全部成就解鎖且 `S.skyComplete` 未設時，送 `config.skyComplete.reward` 兌換券（source `成就`）、顯示信件彈窗（`skySvg()` 加 `.cmap.alive` 動畫）。成就頁全亮時也會套 `alive` 並顯示信件卡。
