@@ -61,12 +61,15 @@ window.APP_CONFIG = {
     notify: true,                    // 放葉子時通知你（走 ntfy）
     // 心情選項：label 顯示文字、emoji 圖示、color 葉子顏色（通知也會帶上心情）
     moods: [
-      { key: "happy", label: "開心", emoji: "😊", color: "#8fd694" },
-      { key: "calm",  label: "平靜", emoji: "😌", color: "#ffe08a" },
-      { key: "miss",  label: "想你", emoji: "🥺", color: "#ffb3d9" },
-      { key: "tired", label: "好累", emoji: "😮‍💨", color: "#c9b8ff" },
-      { key: "sad",   label: "難過", emoji: "😢", color: "#8fb8ff" },
-      { key: "angry", label: "生氣", emoji: "😤", color: "#ff9b8a" },
+      { key: "happy",   label: "開心", emoji: "😊", color: "#8fd694" },
+      { key: "bliss",   label: "幸福", emoji: "🥰", color: "#ffc9a6" },
+      { key: "calm",    label: "平靜", emoji: "😌", color: "#ffe08a" },
+      { key: "miss",    label: "想你", emoji: "🥺", color: "#ffb3d9" },
+      { key: "tired",   label: "好累", emoji: "😮‍💨", color: "#c9b8ff" },
+      { key: "sad",     label: "難過", emoji: "😢", color: "#8fb8ff" },
+      { key: "wronged", label: "委屈", emoji: "🥹", color: "#a9dfe6" },
+      { key: "jealous", label: "吃醋", emoji: "😒", color: "#d8e37a" },
+      { key: "angry",   label: "生氣", emoji: "😤", color: "#ff9b8a" },
     ],
     // 小動物：樹洞裡的葉子累積到 count 片就會出現（最多 10 隻，依順序安排在樹旁不同位置）
     // image 是 Q 版圖片（放在 assets/animals/，用 tools/cutout.py 去背）；沒有 image 或圖片載入失敗時會顯示 emoji。
