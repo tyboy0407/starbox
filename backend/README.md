@@ -95,6 +95,20 @@ Commit 上傳到 GitHub。幾分鐘後她重開 App，之前寫的葉子會自�
 
 ---
 
+## 主畫面推播（選用）
+
+讓她的 iPhone 在你派小動物時跳出通知。只做一次：
+
+1. 在電腦上產生一組 VAPID 金鑰（任何 Web Push 金鑰產生器都可以，或 `npx web-push generate-vapid-keys`）。
+2. 公鑰填兩個地方：`config.js` 的 `push.publicKey`，和 `backend/wrangler.toml` 的 `VAPID_PUBLIC`（兩邊要一模一樣）。
+3. 私鑰設成 Worker 的 Secret：`cd backend && npx wrangler secret put VAPID_PRIVATE`（貼上私鑰）。用網頁後台的話是 Worker → Settings → Variables and Secrets → 新增 Secret。
+4. `npx wrangler deploy` 重新部署。後台 admin.html 最下面會多一張「她的手機推播」卡，看得到她訂閱了沒，也能「送一則測試」。
+
+她那邊：從主畫面打開 App，看到「想讓小動物來敲門嗎？」按「好啊」，iPhone 會再跳一次系統詢問。之後你派信她就會收到通知。
+她按「以後再說」會隔 7 天再問（`config.js` 的 `push.askAgainDays`）；如果她在系統詢問按了「不允許」，要去 iPhone 設定 → 通知 → 星星小宇宙 打開。
+
+生日當天早上 9 點會自動推一則 `BIRTHDAY_PUSH`（`wrangler.toml` 裡可改文字；日期在 `[triggers]` 的 cron，要和 `config.js` 的 `birthday` 一致）。
+
 ## 常見問題
 
 - **後台顯示「連線失敗：密碼不對」**：`ADMIN_SECRET` 打錯，或在 Cloudflare 改過但沒 Deploy。
@@ -102,3 +116,4 @@ Commit 上傳到 GitHub。幾分鐘後她重開 App，之前寫的葉子會自�
 - **信一直「待送達」**：她還沒打開 App。App 在打開或回到前景時才會去拉信。
 - **想換密碼**：Cloudflare 改 `ADMIN_SECRET` → Deploy → 後台按 ⚙️ 設定重填。
 - **管理模式裡的「回信給樹洞」還在**：那是在她手機上直接回的備用方式，兩種都能用。
+- **推播收不到**：她要從主畫面開（Safari 分頁收不到）、iOS 16.4 以上、系統通知有允許；後台「她的手機推播」卡要顯示已訂閱。她刪掉主畫面圖示再加回去，要重新同意一次。

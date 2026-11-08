@@ -179,6 +179,18 @@ window.APP_CONFIG = {
     appKey: "cd39ccba5e3ebd22",      // 要和 Cloudflare 裡設的 APP_KEY 一模一樣（這把鑰匙本來就會公開在網頁裡，後台密碼才是真正的秘密）
   },
 
+  /* ---------- 主畫面推播 ----------
+   * 她把 App 加到主畫面後，你在後台派小動物時，她的手機會跳出通知（iOS 16.4 以上）。
+   * publicKey 是 VAPID 公鑰，要和 backend/wrangler.toml 的 VAPID_PUBLIC 一樣；私鑰只放在 Cloudflare。
+   * 第一次會用一個彈窗問她要不要開通知，她按「以後再說」的話隔 askAgainDays 天再問一次。 */
+  push: {
+    enabled: true,
+    publicKey: "BAHvqx30dCjBdLy8qkqGVxCIAmue5UCT9dueg8ybewWBGV93YqHDdAPU2oa9rtauhxN65LIel-XB_3JK6HZV4yQ",
+    askTitle: "想讓小動物來敲門嗎？",
+    askText: "開啟通知的話，{署名}派小動物送信或禮物來的時候，\n手機會跳出一則小小的提醒 🐾",   // {署名} 會換成 fromName，\n 是換行
+    askAgainDays: 7,
+  },
+
   /* ---------- 每日輪盤 ----------
    * label：顯示的文字（4 個字以內最好看，最多 8 個字）
    * emoji：圖示

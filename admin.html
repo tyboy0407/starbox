@@ -95,6 +95,11 @@ select.input{appearance:none;-webkit-appearance:none}
     <h4>📮 還沒送達的信</h4>
     <div id="pending"></div>
   </div>
+
+  <div class="card hidden" id="pushCard">
+    <h4>🔔 她的手機推播 <button class="btn ghost sm" id="pushTest">送一則測試</button></h4>
+    <p class="muted small" id="pushInfo">—</p>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -154,7 +159,7 @@ async function api(path, opts = {}) {
 }
 function showSetup(show) {
   $('#setup').classList.toggle('hidden', !show);
-  ['#compose', '#leavesCard', '#pendingCard'].forEach(s => $(s).classList.toggle('hidden', show));
+  ['#compose', '#leavesCard', '#pendingCard', '#pushCard'].forEach(s => $(s).classList.toggle('hidden', show));
 }
 async function refresh() {
   try {
@@ -175,6 +180,10 @@ function render() {
   $('#target').textContent = target ? `回「${target.text.slice(0, 14)}${target.text.length > 14 ? '…' : ''}」` : '主動送的信（不指定葉子）';
   $('#animals').innerHTML = T.animals.map((a, i) => `<button class="ani ${i === pickedAnimal ? 'on' : ''}" data-i="${i}"><div class="e">${a.image ? `<img src="${esc(a.image)}" alt="${esc(a.emoji)}" data-e="${esc(a.emoji)}" onerror="this.outerHTML=this.dataset.e">` : esc(a.emoji)}</div>${esc(a.name || '')}</button>`).join('');
   document.querySelectorAll('.ani').forEach(b => b.onclick = () => { pickedAnimal = +b.dataset.i; render(); });
+  const push = state.push || {};
+  $('#pushInfo').textContent = !push.ready ? 'Cloudflare 還沒設 VAPID 金鑰（看 backend/README.md），派信時不會推播'
+    : push.subs ? `她的手機已訂閱（${push.subs} 支，最近 ${fmt(push.last)}）。你派小動物時會跳通知；訂閱失效會自動清掉。` : '她還沒在主畫面 App 裡同意通知。她打開 App 時會被問一次；同意後這裡會顯示已訂閱。';
+  $('#pushTest').disabled = !push.ready || !push.subs;
   const pending = replies.filter(r => !r.delivered);
   $('#pending').innerHTML = pending.length ? pending.map(r => `<div class="leaf"><div class="l-head"><span>${esc(r.animal.emoji)} ${esc(r.animal.name)} · ${fmt(r.t)}${r.leafId ? '' : ' · 主動送的'}</span><button class="btn ghost sm" data-del="${esc(r.id)}">收回</button></div><div class="l-text">${esc(r.text)}</div>${r.gift ? `<div class="gchip">帶著 ${esc(giftLabel(r.gift))}</div>` : ''}</div>`).join('') : '<div class="empty">沒有待送達的信，她都收到了 💌</div>';
   document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (!confirm('收回這封還沒送達的信？')) return; try { await api('/admin/reply/delete', { method: 'POST', body: JSON.stringify({ id: b.dataset.del }) }); toast('已收回'); refresh(); } catch (e) { toast(e.message); } });
@@ -183,6 +192,12 @@ $('#url').value = cfg.url || ''; $('#secret').value = cfg.secret || '';
 $('#setupBtn').onclick = () => showSetup($('#setup').classList.contains('hidden'));
 $('#saveSetup').onclick = () => { cfg = { url: $('#url').value.trim(), secret: $('#secret').value }; try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {} $('#setupMsg').textContent = '連線中…'; refresh(); };
 $('#refresh').onclick = refresh;
+$('#pushTest').onclick = async () => {
+  $('#pushTest').disabled = true;
+  try { const r = await api('/admin/push/test', { method: 'POST', body: JSON.stringify({ title: '星星小宇宙', body: '這是寶球發的測試通知 🔔 收到的話就代表成功了' }) }); toast(r.sent ? `已推給 ${r.sent} 支手機` : '推播服務沒收下，稍後再試'); }
+  catch (e) { toast('失敗：' + e.message); }
+  $('#pushTest').disabled = false;
+};
 $('#text').oninput = () => { $('#tc').textContent = `${$('#text').value.length} / 2000`; };
 renderGift();
 $('#send').onclick = async () => {

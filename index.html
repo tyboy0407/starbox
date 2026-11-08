@@ -514,7 +514,8 @@ function fillTpl(s) {
   return String(s || '')
     .replace(/\{第幾天\}/g, now.getDate())
     .replace(/\{生日倒數\}/g, bd === null ? '' : bd)
-    .replace(/\{名字\}/g, C.herName || '');
+    .replace(/\{名字\}/g, C.herName || '')
+    .replace(/\{署名\}/g, C.fromName || '');
 }
 // 生日月（依 birthday 的月份）且有設定 birthMonthMessage 時顯示它，否則顯示 homeMessage
 function homeMessage() {
@@ -538,7 +539,8 @@ const fresh = () => ({ points: C.startingPoints || 0, history: [], spins: {}, pl
   leaves: [],                                   // 樹洞的心情葉子 [{id, t, mood, text, sent, replied}]
   replies: [],                                  // 男友的回信 [{id, leafId, animal:{emoji,name}, text, t, delivered}]
   skyComplete: 0,                               // 星圖全亮彩蛋已觸發的時間
-  bday: {} });                                  // 生日驚喜：{ '2026': {t, done} }，每年演一次
+  bday: {},                                     // 生日驚喜：{ '2026': {t, done} }，每年演一次
+  push: { asked: 0, endpoint: '', synced: 0 } });   // 主畫面推播：上次詢問時間、已同步到後台的訂閱
 let S;
 try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || {}); } catch (e) { S = fresh(); }
 function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
@@ -1813,6 +1815,57 @@ async function syncBackend() {
   return gotNew;
 }
 
+/* ================= 主畫面推播（iOS 16.4+ 加到主畫面後可以收 Web Push；sw.js 只收推播不做快取） ================= */
+const pushCfg = () => Object.assign({ enabled: true, publicKey: '', askTitle: '想讓小動物來敲門嗎？', askText: '開啟通知的話，{署名}派小動物送信或禮物來的時候，\n手機會跳出一則小小的提醒 🐾', askAgainDays: 7 }, C.push || {});
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && pushCfg().enabled !== false && !!pushCfg().publicKey && hasBackend();
+let swReg = null;
+async function registerSw() {
+  if (!pushSupported()) return null;
+  try { swReg = swReg || await navigator.serviceWorker.register('sw.js'); } catch (e) { swReg = null; }
+  return swReg;
+}
+const b64ToBytes = str => { const b = atob(String(str).replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(str.length / 4) * 4, '=')); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+// 她已同意通知：確認訂閱還在，並把它存到後台（同一個訂閱一天最多回報一次）
+async function syncPush(force) {
+  if (!pushSupported() || Notification.permission !== 'granted' || !navigator.onLine) return false;
+  if (!S.push) S.push = {};
+  try {
+    const reg = await registerSw(); if (!reg) return false;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(pushCfg().publicKey) });
+    const j = sub.toJSON();
+    if (!force && S.push.endpoint === j.endpoint && Date.now() - (S.push.synced || 0) < 86400e3) return true;
+    const r = await backendFetch('/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription: j, ua: navigator.userAgent.slice(0, 120) }) });
+    if (r && r.ok) { S.push.endpoint = j.endpoint; S.push.synced = Date.now(); save(); return true; }
+  } catch (e) {}
+  return false;
+}
+// 問她要不要開通知：只在主畫面模式問（Safari 分頁本來就收不到），她說「以後再說」就隔 askAgainDays 天再問。回傳 true 表示有跳彈窗
+async function maybeAskPush() {
+  if (!pushSupported() || !standalone || !S.welcomed || game.key || bdayActive || $('.modal-bg:not(.out)')) return false;
+  if (Notification.permission === 'granted') { syncPush(); return false; }
+  if (Notification.permission === 'denied') return false;
+  if (!S.push) S.push = {};
+  const p = pushCfg();
+  if (S.push.asked && Date.now() - S.push.asked < (+p.askAgainDays || 7) * 86400e3) return false;
+  S.push.asked = Date.now(); save();
+  let granted = false;
+  await modal({
+    icon: '🔔', title: esc(fillTpl(p.askTitle)), html: `<p>${nl2br(fillTpl(p.askText))}</p>`, dismiss: false,
+    buttons: [{ text: '以後再說' }, { text: '好啊 🐾', primary: true }],
+    onOpen(bg, close) {
+      // iOS 要在她點按鈕的當下呼叫 requestPermission 才會跳系統詢問，所以不能等 modal 回來再問
+      $('[data-i="1"]', bg).addEventListener('click', e => {
+        e.stopPropagation();
+        Promise.resolve().then(() => Notification.requestPermission()).then(r => { granted = r === 'granted'; }).catch(() => {}).then(() => close(1));
+      }, { once: true });
+    }
+  });
+  if (granted) { const ok = await syncPush(true); toast(ok ? '好了！小動物來的時候會通知你 🔔' : '通知開好了，之後會自動連上'); }
+  return true;
+}
+const pushStatus = () => !pushSupported() ? (standalone ? '這支手機不支援' : '要從主畫面打開才有') : Notification.permission === 'granted' ? (S.push && S.push.synced ? `已開啟，已同步到後台（${fmtTime(S.push.synced)}）` : '已開啟，還沒同步到後台') : Notification.permission === 'denied' ? '她拒絕了（要去 iPhone 設定開）' : '還沒問她';
+
 /* ================= 樹洞回信（男友在管理模式派小動物送信） ================= */
 const repliesOf = leafId => (S.replies || []).filter(r => r.leafId === leafId && r.delivered);
 function replyHtml(l) {
@@ -2053,7 +2106,7 @@ async function admin() {
   if (String(a.values.code) !== String(C.adminCode)) return toast('密碼不對喔');
   const b = await modal({
     title: '🛠 管理模式',
-    html: `<p class="left muted small">ntfy：${hasTopic() ? `已設定（${esc(C.ntfy.topic)}）` : '⚠️ 還沒設定 topic，收不到通知'}<br>等待送出的通知：${S.outbox.length} 則<br>回信後台：${hasBackend() ? `已設定（${esc(backendCfg().url)}）` : '未設定（看 backend/README.md）'}</p>
+    html: `<p class="left muted small">ntfy：${hasTopic() ? `已設定（${esc(C.ntfy.topic)}）` : '⚠️ 還沒設定 topic，收不到通知'}<br>等待送出的通知：${S.outbox.length} 則<br>回信後台：${hasBackend() ? `已設定（${esc(backendCfg().url)}）` : '未設定（看 backend/README.md）'}<br>主畫面推播：${esc(pushStatus())}</p>
            <input class="input" name="pts" type="number" inputmode="numeric" placeholder="加幾顆${PN}？（負數是扣）">`,
     buttons: [{ text: `加 / 扣${PN}`, primary: true }, { text: '重置今天的次數' }, { text: '測試通知' }, { text: '召喚偷星怪客' }, { text: '回信給樹洞 📨' }, { text: '預演生日 🎂' }, { text: '清除全部資料', danger: true }, { text: '關閉' }]
   });
@@ -2102,7 +2155,7 @@ document.addEventListener('gesturestart', e => e.preventDefault());
 let lastDay = dayKey();
 document.addEventListener('visibilitychange', async () => {
   if (document.hidden) return;
-  flushOutbox();
+  flushOutbox(); syncPush();
   if (dayKey() !== lastDay) { lastDay = dayKey(); if (!game.key && render[current]) render[current](); }
   if (birthdayDays() === 0) maxStat('birthday', 1);
   if (bdayPending() && !game.key && !$('.modal-bg:not(.out)')) { await runBirthday(); await checkin(); await syncBackend(); await deliverReplies(); return; }   // 跨過午夜進入生日
@@ -2117,6 +2170,7 @@ go('home');
 flushOutbox();
 
 (async () => {
+  registerSw();   // 推播用的 Service Worker（不做快取）
   const firstOpen = !S.welcomed;
   if (firstOpen) {
     S.welcomed = true;
@@ -2132,8 +2186,9 @@ flushOutbox();
   const signed = await checkin();
   await syncBackend();
   const delivered = await deliverReplies();
+  const askedPush = !partied && await maybeAskPush();   // 問她要不要開主畫面通知（一次，之後隔幾天才再問）；放在成就前，成就彈窗會排在後面
   checkBadges();
-  if (!firstOpen && !signed && !delivered && !partied) setTimeout(maybeThief, 900);   // 第一次打開、剛簽到或剛過完生日就不叫怪客
+  if (!firstOpen && !signed && !delivered && !partied && !askedPush) setTimeout(maybeThief, 900);   // 第一次打開、剛簽到或剛過完生日就不叫怪客
 })();
 })();
 </script>

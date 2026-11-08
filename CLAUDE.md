@@ -29,6 +29,9 @@ assets/thief.png      偷星怪客的去背圖（config.thief.image）
 assets/animals/*.png  樹洞小動物的 Q 版去背圖（config.tree.animals[].image）；PROMPTS.md 是生圖提示詞；原始 .jpg 已 gitignore
 tools/cutout.py       白底圖去背成透明 PNG：python3 tools/cutout.py --animals（處理 assets/animals/*.jpg → 英文檔名 .png）
 admin.html            男友的回信後台（獨立頁面，讀 config.js 取 moods/animals，連 Cloudflare Worker）
+sw.js                 Service Worker：只收主畫面推播（push / notificationclick），刻意沒有 fetch 事件、不做快取
+backend/wrangler.toml Worker 的 wrangler 設定（KV、APP_KEY、VAPID 公鑰、生日 cron）；私鑰類全用 wrangler secret
+tools/test_push.mjs   Node 單元測試：驗證 worker.js 的 Web Push 加密能解回原文、VAPID JWT 驗得過（node tools/test_push.mjs）
 backend/worker.js     Cloudflare Worker：葉子／回信的小信箱 API（KV 綁定 MAIL、變數 APP_KEY、Secret ADMIN_SECRET）
 backend/README.md     給使用者的 Cloudflare 設定教學
 tools/dev_backend.mjs 本機用記憶體模擬 Worker（node tools/dev_backend.mjs 8787），e2e 會自動啟動
@@ -61,6 +64,7 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
     replies: [{id, leafId, animal:{emoji,name}, text, t, delivered}],  // 男友在管理模式寫的回信
     skyComplete: 0,                                        // 星圖全亮彩蛋觸發時間（只送一次）
     bday: { '2026': {t, done} },                           // 生日驚喜每年演一次，拆完禮物才算 done
+    push: { asked, endpoint, synced },                     // 主畫面推播：上次詢問時間、已回報後台的訂閱 endpoint 與時間
     welcomed, hideA2hs
   }
   ```
@@ -76,6 +80,7 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
 - **綿綿樹洞**：`treeCfg()` 合併 `config.tree`（moods、animals 有預設）；`treeSceneSvg()` 畫場景，小動物依 `animals` 排序後對應 `ANIMAL_SPOTS` 位置（有 `image` 就畫 SVG `<image>`，CSS `animalIdle` 浮動、點一下加 `.jump`；有 `blink` 會定時換圖眨眼；沒有 image 退回 emoji `<text>`）；`animalHtml(a, cls)` 給卡片、回信列表、送信彈窗用（`<img>` 載入失敗 onerror 退回 emoji），`animalOf()` 用 name/emoji 把回信裡的 `{emoji,name}` 對回 config 那隻；`submitLeaf()` 寫入 `S.leaves`、`flyLeaf()` 飛葉動畫、`notify({leafId})` 推播，新出現的小動物用 modal 宣布。樹洞分頁在啟動時依 `tree.enabled/tabName` 調整。
 - **樹洞回信**：男友在**她的手機**進管理模式按「回信給樹洞」→ `adminReply()` 三步：選葉子、選小動物、寫信（`modal` 的 `onOpen(bg, close)` 讓列表按鈕可以直接關閉彈窗），存進 `S.replies`。`deliverReplies()` 在啟動與回前景時（簽到之後、怪客之前）把未送達的回信用小動物叼信的彈窗顯示，標記 `delivered`，樹洞列表會在該葉子下方顯示回信。
 - **回信後台同步**：`config.backend.url/appKey` 有設時，`syncBackend()` 在啟動、回前景、online、放葉子後執行：POST 未同步葉子（`leaf.synced`）、POST 已送達回報（`reply.acked`）、GET 新回信（標 `remote: true` 存進 `S.replies`）。之後 `deliverReplies()` 照常顯示；遠端回信送達時會 ntfy 通知男友並回報後台。所有請求 8 秒逾時、失敗就下次再試，不影響 App 運作。
+- **主畫面推播**：`config.push`（`pushCfg()` 有預設；`publicKey` 是 VAPID 公鑰，和 `backend/wrangler.toml` 的 `VAPID_PUBLIC` 同一把，私鑰只在 Cloudflare Secret `VAPID_PRIVATE`）。啟動時 `registerSw()` 註冊 `sw.js`；`maybeAskPush()` 在 `deliverReplies()` 之後、只在主畫面模式（`standalone`）且權限是 `default` 時跳彈窗問她，按「好啊」的 click handler 內直接呼叫 `Notification.requestPermission()`（iOS 要在手勢當下問），「以後再說」隔 `askAgainDays` 天再問（`S.push.asked`）。同意後 `syncPush()` 用 `pushManager.subscribe` 取得訂閱，POST `/push/subscribe` 到 Worker 存進 KV `subs`（同一 endpoint 一天回報一次，啟動與回前景都會呼叫）。Worker 端 `encryptPush()`（RFC 8291 aes128gcm）＋`vapidAuth()`（ES256 JWT）全用 WebCrypto，`pushAll()` 在 `/admin/reply` 後推「XX帶著信／禮物來找你」（不含內容），404/410 的訂閱自動刪；`/admin/push/test` 給 admin.html 的「送一則測試」；`scheduled()` 依 wrangler.toml 的 cron 在生日早上推 `BIRTHDAY_PUSH`。管理模式會顯示推播狀態。e2e 無法真的訂閱（Playwright 擋 SW），只測端點與詢問彈窗；加密正確性由 `tools/test_push.mjs` 驗。
 - **主動送信與帶禮物**：admin.html 不選葉子就是主動送的信（`leafId` 空字串，彈窗標題改成「帶著信來找你」）。信可以附 `gift`：`{type:'points', n}` 送星星、`{type:'coupon', name, emoji}` 自訂兌換券、`{type:'shop', id}` 商店品項（不扣星星，直接給一張券；有 `dice`／`scratch` 的品項會照常擲骰／刮刮卡，結果由共用的 `drawPrize(it)` 決定、`playPrize()` 播動畫）。Worker 的 `giftOf()` 會過濾欄位；`GET /replies` 要帶 `?v=2` 才會回附禮物的信，舊版 App 拿不到、也就不會把禮物標成送達弄丟。App 端 `normGift()` 清洗後存進 `reply.gift`；她按「收下禮物」時 `receiveGift(r)` **先寫 state**（`addPoints` 或 `S.coupons.unshift`，source 用 `tree.giftSource`，預設「小動物」）並設 `r.giftTaken`，再播動畫，最後 ntfy 通知男友「收到禮物了」。
 - **星圖全亮彩蛋**：`maybeSkyComplete()` 由 `showBadgeQueue` 在佇列清空時呼叫；全部成就解鎖且 `S.skyComplete` 未設時，送 `config.skyComplete.reward` 兌換券（source `成就`）、顯示信件彈窗（`skySvg()` 加 `.cmap.alive` 動畫）。成就頁全亮時也會套 `alive` 並顯示信件卡。
 - **生日驚喜**：`config.birthdayParty`（`bdayCfg()` 有預設）。生日當天（`birthdayDays() === 0`）且 `S.bday[年份].done` 未設時，啟動流程在歡迎畫面之後、簽到之前 `await runBirthday()`；`visibilitychange` 回前景也會檢查（跨午夜）。流程全在一個 `.bparty` 全螢幕 overlay（z-index 95，`bdayActive` 期間怪客與成就彈窗不出現）：`cakeSvg()` 蛋糕、按住 `holdSeconds` 秒逐根吹熄（用 rAF 時間戳計時，放開會暫停）→ `bdayFx()` canvas 粒子（煙火 rocket/burst、彩帶 confetti、星星 stars）＋大字 → 前 6 隻 `treeCfg().animals` 搬禮物盒進場（`.parade`）→ 點盒蓋：**先寫 state**（`S.bday`、兌換券 source `生日`、`addPoints(stars)`、ntfy 通知男友）再播星星噴出與計數 → 兌換券卡片「收下」。管理模式「預演生日」= `runBirthday({preview:true})`，不寫 state 也不通知。
@@ -93,7 +98,7 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
   - iOS 不支援 `navigator.vibrate`
   - 主畫面 App 和 Safari 的 localStorage 是分開的
   - 遊戲裡的點擊用 `pointerdown`，反應比較快
-- **目前刻意不加 Service Worker**：加了的話，使用者改 config.js 後她會一直看到舊版快取。如果要加離線支援，必須做版本化，並對 config.js 採用 network-first。
+- **Service Worker 只做推播，不做快取**：`sw.js` 刻意沒有 fetch 事件，所以改 config.js 她重開就會拿到新版。如果要加離線支援，必須做版本化，並對 config.js 採用 network-first。
 - 資料只存在她的手機（localStorage），沒有雲端同步，這是刻意的設計（不需要後端）。
 - 這是公開 repo：`config.js` 裡的題目答案和 ntfy topic 都是公開的，不要放任何真正的密碼或金鑰。
 

@@ -27,8 +27,9 @@ async def main():
 async def run():
   async with async_playwright() as p:
     b=await p.chromium.launch()
-    ctx=await b.new_context(viewport={'width':390,'height':844},device_scale_factor=2,is_mobile=True,has_touch=True,
-      user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1')
+    UA='Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
+    # service_workers='block'：Playwright 的 route 攔不到 Service Worker 的請求，測試時不讓 sw.js 真的註冊
+    ctx=await b.new_context(viewport={'width':390,'height':844},device_scale_factor=2,is_mobile=True,has_touch=True,user_agent=UA,service_workers='block')
     pg=await ctx.new_page()
     errs=[]; sent=[]
     pg.on('pageerror',lambda e: errs.append(str(e)))
@@ -172,16 +173,21 @@ async def run():
     sc=await pg.query_selector('[data-redeem=scratch]:not([disabled])')
     if sc:
       await sc.click(); await pg.wait_for_timeout(400); await pg.click('.modal-bg .btn >> nth=1'); await pg.wait_for_timeout(500)
-      box=await pg.eval_on_selector('#sCv','e=>{const r=e.getBoundingClientRect();return [r.left,r.top,r.width,r.height]}')
-      await pg.mouse.move(box[0]+10,box[1]+10); await pg.mouse.down()
-      for row in range(6):
-        y=box[1]+12+row*(box[3]-24)/5
-        xs=range(0,12) if row%2==0 else range(11,-1,-1)
-        for c in xs: await pg.mouse.move(box[0]+10+c*(box[2]-20)/11,y)
-        if row==2: await pg.screenshot(path=f'{OUT}/13e-scratch-half.png')
-      await pg.mouse.up(); await pg.wait_for_timeout(800)
+      async def scratch_card(shot):
+        box=await pg.eval_on_selector('.modal-bg:not(.out) #sCv','e=>{const r=e.getBoundingClientRect();return [r.left,r.top,r.width,r.height]}')
+        await pg.mouse.move(box[0]+10,box[1]+10); await pg.mouse.down()
+        for row in range(6):
+          y=box[1]+12+row*(box[3]-24)/5
+          xs=range(0,12) if row%2==0 else range(11,-1,-1)
+          for c in xs: await pg.mouse.move(box[0]+10+c*(box[2]-20)/11,y)
+          if row==2 and shot: await pg.screenshot(path=f'{OUT}/13e-scratch-half.png')
+        await pg.mouse.up(); await pg.wait_for_timeout(800)
+      await scratch_card(True)
       await pg.screenshot(path=f'{OUT}/13f-scratch-done.png')
-      print('scratch',await pg.inner_text('#sMsg'))
+      msg=await pg.inner_text('.modal-bg:not(.out) #sMsg'); print('scratch',msg)
+      if '再刮' in msg:   # 刮到「再刮一次」：按「再刮一張」後會再出一張，要再刮開按鈕才會出現
+        await pg.click('.modal-bg:not(.out) .m-btns .btn'); await pg.wait_for_timeout(600)
+        await scratch_card(False); print('scratch again',await pg.inner_text('.modal-bg:not(.out) #sMsg'))
       await clear_modals()
     await pg.screenshot(path=f'{OUT}/14-shop-after.png',full_page=True)
     # wish
@@ -294,6 +300,35 @@ async def run():
     await pg.screenshot(path=f'{OUT}/22-sky-alive.png',full_page=True)
     st=await pg.evaluate('JSON.parse(localStorage.starbox_v1)')
     print('skyComplete',bool(st['skyComplete']),'coupons',[c['name'] for c in st['coupons']][:2])
+    # 主畫面推播：後台端點（存訂閱、測試推播）＋ App 在主畫面模式下的詢問彈窗
+    hdr={'Content-Type':'application/json','X-App-Key':'dev-app-key'}
+    fake={'subscription':{'endpoint':'https://localhost:9/fake-push','keys':{'p256dh':'BJrf-gYqSzIw1rF_Cf-CVeO4SCeFqOlBio9g-by5S8q1tn8E33exDdvxHE3BfvSg31osrGwADA2ZBjbuf-IG_s0','auth':'AAAAAAAAAAAAAAAAAAAAAA'}},'ua':'e2e'}
+    r=json.loads(urllib.request.urlopen(urllib.request.Request(BACKEND+'/push/subscribe',data=json.dumps(fake).encode(),headers=hdr)).read())
+    stt=json.loads(urllib.request.urlopen(urllib.request.Request(BACKEND+'/admin/state',headers={'Authorization':'Bearer dev-admin-secret'})).read())
+    t=json.loads(urllib.request.urlopen(urllib.request.Request(BACKEND+'/admin/push/test',data=b'{}',headers={'Content-Type':'application/json','Authorization':'Bearer dev-admin-secret'})).read())
+    print('push subscribe',r,'state.push',stt['push'],'test',t)
+    assert r.get('ok') and r.get('push') and stt['push']['subs']==1 and t.get('ok') and t.get('subs')==1 and t.get('sent')==0, 'push backend'
+    # 新開一個「主畫面模式」的分頁：navigator.standalone=true → 啟動後應該跳出詢問彈窗，按「好啊」後 S.push.asked 有值
+    ctx2=await b.new_context(viewport={'width':390,'height':844},device_scale_factor=2,is_mobile=True,has_touch=True,user_agent=UA,service_workers='block')   # 權限維持 default，App 才會跳詢問彈窗（headless 按下去會變 denied，這裡只驗流程）
+    seed=json.dumps({'points':10,'history':[],'spins':{},'plays':{},'wishes':[],'coupons':[],'redeemCount':{},'outbox':[],'thief':{},'streak':{'count':1,'last':time.strftime('%Y-%m-%d'),'best':1},'stats':{},'badges':{},'leaves':[],'replies':[],'skyComplete':0,'bday':{},'welcomed':True,'hideA2hs':True})
+    # headless Chromium 的 Notification.permission 預設是 denied，這裡模擬成還沒問過（default），按「好啊」就當作她同意
+    await ctx2.add_init_script("Object.defineProperty(navigator,'standalone',{get:()=>true}); Object.defineProperty(Notification,'permission',{get:()=>window.__perm||'default'}); Notification.requestPermission=()=>{window.__perm='granted';return Promise.resolve('granted')}; if(!localStorage.getItem('starbox_v1')) localStorage.setItem('starbox_v1',"+json.dumps(seed)+");")
+    p2=await ctx2.new_page(); errs2=[]
+    p2.on('pageerror',lambda e: errs2.append(str(e)))
+    await p2.route('https://ntfy.sh/**',ntfy); await p2.route('http://localhost/**',files); await p2.route('http://localhost/api/**',api)
+    await p2.route(re.compile(r'https://fonts\..*'),lambda r: r.fulfill(body='',content_type='text/css'))
+    await p2.goto('http://localhost/'); await p2.wait_for_timeout(1800)
+    ask=(await p2.inner_text('.modal-bg:not(.out)')).replace(chr(10),' / ')
+    print('push ask modal',ask[:80])
+    assert '敲門' in ask, 'push ask modal missing'
+    await p2.screenshot(path=f'{OUT}/23-push-ask.png')
+    await p2.click('.modal-bg:not(.out) [data-i="1"]'); await p2.wait_for_timeout(1500)
+    st2=await p2.evaluate('JSON.parse(localStorage.starbox_v1)')
+    print('push after accept: permission',await p2.evaluate('Notification.permission'),'asked',bool(st2['push']['asked']),'errors',errs2)
+    assert st2['push']['asked']>0, 'push asked not recorded'
+    await p2.reload(); await p2.wait_for_timeout(1500)
+    print('push ask again on reload:',bool(await p2.query_selector('.modal-bg:not(.out)')))
+    await ctx2.close()
     print('ntfy',json.dumps(sent,ensure_ascii=False))
     print('errors',errs)
     await b.close()
