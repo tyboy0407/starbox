@@ -3,10 +3,10 @@
  *
  *  這支程式跑在 Cloudflare 上，當作她的 App 和你的回信後台之間的小信箱：
  *    她的 App  → POST /leaf        把新葉子存進來（這樣你的後台看得到）
- *    她的 App  → GET  /replies     拉還沒送達的回信
+ *    她的 App  → GET  /replies     拉還沒送達的回信（新版 App 會帶 ?v=2，才拿得到附禮物的信）
  *    她的 App  → POST /delivered   回報哪些信已經送到她手上
  *    你的後台  → GET  /admin/state 看所有葉子與回信
- *    你的後台  → POST /admin/reply 寫一封回信
+ *    你的後台  → POST /admin/reply 寫一封信（可以指定葉子回信，也可以不指定主動送；可附 gift 禮物）
  *    你的後台  → POST /admin/reply/delete 收回還沒送達的信
  *
  *  需要的設定（在 Cloudflare 後台 Worker → Settings 設）：
@@ -34,6 +34,14 @@ export default {
     const save = (k, v) => env.MAIL.put(k, JSON.stringify(v));
     const body = async () => { try { return await req.json(); } catch (e) { return {}; } };
     const str = (v, n) => String(v == null ? '' : v).slice(0, n);
+    // 小動物帶的禮物：points（送星星）、coupon（自訂兌換券）、shop（config.js 商店裡的品項，用 id 指定）
+    const giftOf = g => {
+      if (!g || typeof g !== 'object') return null;
+      if (g.type === 'points') { const n = Math.round(+g.n || 0); return n > 0 ? { type: 'points', n: Math.min(n, 9999) } : null; }
+      if (g.type === 'coupon') { const name = str(g.name, 40).trim(); return name ? { type: 'coupon', name, emoji: str(g.emoji, 16) || '🎁' } : null; }
+      if (g.type === 'shop') { const id = str(g.id, 40).trim(); return id ? { type: 'shop', id, name: str(g.name, 40), emoji: str(g.emoji, 16) || '🎁' } : null; }
+      return null;
+    };
     const appOk = !!env.APP_KEY && (req.headers.get('X-App-Key') === env.APP_KEY || url.searchParams.get('key') === env.APP_KEY);
     const adminOk = !!env.ADMIN_SECRET && req.headers.get('Authorization') === 'Bearer ' + env.ADMIN_SECRET;
 
@@ -57,7 +65,8 @@ export default {
       if (path === '/replies' && req.method === 'GET') {
         if (!appOk) return json({ error: 'app key 不對' }, 401);
         const replies = await load('replies');
-        return json({ replies: replies.filter(r => !r.delivered) });
+        const v = +url.searchParams.get('v') || 1;   // 舊版 App 看不懂禮物，先不給它附禮物的信，等她更新再送
+        return json({ replies: replies.filter(r => !r.delivered && (v >= 2 || !r.gift)) });
       }
       if (path === '/delivered' && req.method === 'POST') {
         if (!appOk) return json({ error: 'app key 不對' }, 401);
@@ -77,14 +86,15 @@ export default {
         }
         if (path === '/admin/reply' && req.method === 'POST') {
           const b = await body();
-          const text = str(b.text, 2000).trim();
-          if (!text) return json({ error: '信的內容是空的' }, 400);
+          const text = str(b.text, 2000).trim(), gift = giftOf(b.gift);
+          if (!text && !gift) return json({ error: '信的內容是空的' }, 400);
           const reply = {
             id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
             leafId: str(b.leafId, 40),
             animal: { emoji: str(b.animal && b.animal.emoji, 16) || '🐿️', name: str(b.animal && b.animal.name, 20) },
             text, t: Date.now(), delivered: false,
           };
+          if (gift) reply.gift = gift;
           const replies = await load('replies');
           replies.unshift(reply);
           if (replies.length > MAX_REPLIES) replies.length = MAX_REPLIES;

@@ -51,6 +51,14 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;background:rgba(255,255,255,.08);border:1px solid var(--line)}
 .pill.ok{color:var(--ok);border-color:rgba(123,224,168,.4)} .pill.wait{color:var(--gold);border-color:rgba(255,217,138,.4)}
 .empty{color:var(--muted);font-size:14px;text-align:center;padding:10px 0}
+.gifts{display:flex;flex-wrap:wrap;gap:6px}
+.gtab{padding:7px 12px;border-radius:999px;font-size:13px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--muted)}
+.gtab.on{border-color:var(--gold);background:rgba(255,217,138,.14);color:var(--text)}
+.gform{margin-top:8px;display:flex;gap:8px;align-items:center}
+.gform .input{flex:1;min-width:0}
+.gform .input.sm{flex:0 0 72px;text-align:center}
+select.input{appearance:none;-webkit-appearance:none}
+.gchip{display:inline-block;margin-top:6px;padding:4px 10px;border-radius:999px;font-size:12px;background:rgba(255,217,138,.12);border:1px solid rgba(255,217,138,.4);color:var(--gold)}
 </style>
 </head>
 <body>
@@ -68,9 +76,12 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
   </div>
 
   <div class="card hidden" id="compose">
-    <h4>✍️ 寫回信 <span class="muted small" id="target">一般的信（不指定葉子）</span></h4>
+    <h4>✍️ 寫信給她 <span class="muted small" id="target">主動送的信（不指定葉子）</span></h4>
     <div class="animals" id="animals"></div>
     <textarea class="ta" id="text" maxlength="2000" placeholder="寫給她的話…" style="margin-top:10px"></textarea>
+    <label>順便帶個禮物（選填，她按「收下」時才會進帳）</label>
+    <div class="gifts" id="gifts"></div>
+    <div id="giftForm"></div>
     <div class="row"><span class="muted small" id="tc">0 / 2000</span><button class="btn" id="send">派出去 🐾</button></div>
   </div>
 
@@ -102,6 +113,36 @@ let toastT; const toast = m => { const t = $('#toast'); t.textContent = m; t.cla
 const KEY = 'starbox_admin';
 let cfg = {}; try { cfg = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
 let state = { leaves: [], replies: [] }, pickedLeaf = null, pickedAnimal = 0;
+const PN = C.pointName || '星星', PE = C.pointEmoji || '⭐', SHOP = Array.isArray(C.shop) ? C.shop : [];
+let gift = { type: 'none', n: 100, name: '', emoji: '🎁', shop: SHOP[0] ? SHOP[0].id : '' };
+const GIFT_TABS = [['none', '不帶'], ['points', `${PE} ${PN}`], ['coupon', '🎟️ 自訂兌換券'], ['shop', '🎁 商店品項']];
+// 把後台存的 gift 轉成一句話（待送達清單、葉子下方會顯示）
+function giftLabel(g) {
+  if (!g) return '';
+  if (g.type === 'points') return `${PE} ${g.n} 顆${PN}`;
+  if (g.type === 'shop') { const it = SHOP.find(x => x.id === g.id); return `${(it && it.emoji) || g.emoji || '🎁'} ${(it && it.name) || g.name || g.id}`; }
+  return `${g.emoji || '🎁'} ${g.name || ''}`;
+}
+function giftPayload() {
+  if (gift.type === 'points') return { type: 'points', n: Math.round(+gift.n) };
+  if (gift.type === 'coupon') return gift.name.trim() ? { type: 'coupon', name: gift.name.trim(), emoji: gift.emoji.trim() || '🎁' } : null;
+  if (gift.type === 'shop') { const it = SHOP.find(x => x.id === gift.shop); return it ? { type: 'shop', id: it.id, name: it.name, emoji: it.emoji || '🎁' } : null; }
+  return null;
+}
+function renderGift() {
+  $('#gifts').innerHTML = GIFT_TABS.map(([k, t]) => `<button class="gtab ${gift.type === k ? 'on' : ''}" data-g="${k}">${t}</button>`).join('');
+  document.querySelectorAll('.gtab').forEach(b => b.onclick = () => { gift.type = b.dataset.g; renderGift(); });
+  const f = $('#giftForm');
+  if (gift.type === 'points') f.innerHTML = `<div class="gform"><input class="input" id="gN" type="number" inputmode="numeric" min="1" max="9999" value="${esc(gift.n)}"><span class="muted small">顆${esc(PN)}</span></div>`;
+  else if (gift.type === 'coupon') f.innerHTML = `<div class="gform"><input class="input sm" id="gE" maxlength="4" placeholder="🎁" value="${esc(gift.emoji)}"><input class="input" id="gName" maxlength="40" placeholder="券的名字，例如：宵夜外送一次" value="${esc(gift.name)}"></div>`;
+  else if (gift.type === 'shop') f.innerHTML = SHOP.length ? `<div class="gform"><select class="input" id="gShop">${SHOP.map(it => `<option value="${esc(it.id)}" ${it.id === gift.shop ? 'selected' : ''}>${esc(it.emoji || '🎁')} ${esc(it.name)}${it.dice ? '（會擲骰子）' : it.scratch ? '（會刮刮卡）' : ''}</option>`).join('')}</select></div><p class="muted small" style="margin-top:6px">不扣她的${esc(PN)}，直接送一張該品項的兌換券</p>` : '<p class="muted small" style="margin-top:6px">config.js 的 shop 是空的</p>';
+  else f.innerHTML = '';
+  const gN = $('#gN'), gE = $('#gE'), gName = $('#gName'), gShop = $('#gShop');
+  if (gN) gN.oninput = () => { gift.n = gN.value; };
+  if (gE) gE.oninput = () => { gift.emoji = gE.value; };
+  if (gName) gName.oninput = () => { gift.name = gName.value; };
+  if (gShop) gShop.onchange = () => { gift.shop = gShop.value; };
+}
 
 async function api(path, opts = {}) {
   const base = String(cfg.url || '').replace(/\/+$/, '');
@@ -127,15 +168,15 @@ function render() {
   $('#leaves').innerHTML = leaves.length ? leaves.map(l => { const m = moodOf(l.mood); return `<button class="leaf ${pickedLeaf === l.id ? 'on' : ''}" data-id="${esc(l.id)}">
       <div class="l-head"><span>${esc(m.emoji)} ${esc(m.label)} · ${fmt(l.t)}</span><span>${repliesOf(l.id).length ? '✓ 回過 ' + repliesOf(l.id).length + ' 封' : ''}</span></div>
       <div class="l-text">${esc(l.text)}</div>
-      ${repliesOf(l.id).map(r => `<div class="rep"><b>${esc(r.animal.emoji)} ${esc(r.animal.name)} · ${fmt(r.t)} <span class="pill ${r.delivered ? 'ok' : 'wait'}">${r.delivered ? '已送達 ' + fmt(r.deliveredAt) : '待送達'}</span></b>${esc(r.text)}</div>`).join('')}
+      ${repliesOf(l.id).map(r => `<div class="rep"><b>${esc(r.animal.emoji)} ${esc(r.animal.name)} · ${fmt(r.t)} <span class="pill ${r.delivered ? 'ok' : 'wait'}">${r.delivered ? '已送達 ' + fmt(r.deliveredAt) : '待送達'}</span></b>${esc(r.text)}${r.gift ? `<div class="gchip">帶著 ${esc(giftLabel(r.gift))}</div>` : ''}</div>`).join('')}
     </button>`; }).join('') : '<div class="empty">她還沒放過葉子（或 App 還沒同步）</div>';
   document.querySelectorAll('.leaf').forEach(b => b.onclick = () => { pickedLeaf = pickedLeaf === b.dataset.id ? null : b.dataset.id; render(); if (pickedLeaf) $('#compose').scrollIntoView({ behavior: 'smooth' }); });
   const target = leaves.find(l => l.id === pickedLeaf);
-  $('#target').textContent = target ? `回「${target.text.slice(0, 14)}${target.text.length > 14 ? '…' : ''}」` : '一般的信（不指定葉子）';
+  $('#target').textContent = target ? `回「${target.text.slice(0, 14)}${target.text.length > 14 ? '…' : ''}」` : '主動送的信（不指定葉子）';
   $('#animals').innerHTML = T.animals.map((a, i) => `<button class="ani ${i === pickedAnimal ? 'on' : ''}" data-i="${i}"><div class="e">${a.image ? `<img src="${esc(a.image)}" alt="${esc(a.emoji)}" data-e="${esc(a.emoji)}" onerror="this.outerHTML=this.dataset.e">` : esc(a.emoji)}</div>${esc(a.name || '')}</button>`).join('');
   document.querySelectorAll('.ani').forEach(b => b.onclick = () => { pickedAnimal = +b.dataset.i; render(); });
   const pending = replies.filter(r => !r.delivered);
-  $('#pending').innerHTML = pending.length ? pending.map(r => `<div class="leaf"><div class="l-head"><span>${esc(r.animal.emoji)} ${esc(r.animal.name)} · ${fmt(r.t)}</span><button class="btn ghost sm" data-del="${esc(r.id)}">收回</button></div><div class="l-text">${esc(r.text)}</div></div>`).join('') : '<div class="empty">沒有待送達的信，她都收到了 💌</div>';
+  $('#pending').innerHTML = pending.length ? pending.map(r => `<div class="leaf"><div class="l-head"><span>${esc(r.animal.emoji)} ${esc(r.animal.name)} · ${fmt(r.t)}${r.leafId ? '' : ' · 主動送的'}</span><button class="btn ghost sm" data-del="${esc(r.id)}">收回</button></div><div class="l-text">${esc(r.text)}</div>${r.gift ? `<div class="gchip">帶著 ${esc(giftLabel(r.gift))}</div>` : ''}</div>`).join('') : '<div class="empty">沒有待送達的信，她都收到了 💌</div>';
   document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (!confirm('收回這封還沒送達的信？')) return; try { await api('/admin/reply/delete', { method: 'POST', body: JSON.stringify({ id: b.dataset.del }) }); toast('已收回'); refresh(); } catch (e) { toast(e.message); } });
 }
 $('#url').value = cfg.url || ''; $('#secret').value = cfg.secret || '';
@@ -143,14 +184,19 @@ $('#setupBtn').onclick = () => showSetup($('#setup').classList.contains('hidden'
 $('#saveSetup').onclick = () => { cfg = { url: $('#url').value.trim(), secret: $('#secret').value }; try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {} $('#setupMsg').textContent = '連線中…'; refresh(); };
 $('#refresh').onclick = refresh;
 $('#text').oninput = () => { $('#tc').textContent = `${$('#text').value.length} / 2000`; };
+renderGift();
 $('#send').onclick = async () => {
-  const text = $('#text').value.trim(); if (!text) return toast('先寫點什麼吧');
+  const text = $('#text').value.trim(), g = giftPayload();
+  if (gift.type !== 'none' && !g) return toast(gift.type === 'coupon' ? '先幫兌換券取個名字' : '禮物還沒選好');
+  if (g && g.type === 'points' && !(g.n >= 1 && g.n <= 9999)) return toast(`${PN}要填 1～9999`);
+  if (!text && !g) return toast('先寫點什麼吧');
   const a = T.animals[pickedAnimal] || { emoji: '🐿️', name: '松鼠' };
   $('#send').disabled = true;
   try {
-    await api('/admin/reply', { method: 'POST', body: JSON.stringify({ leafId: pickedLeaf || '', animal: { emoji: a.emoji, name: a.name || '' }, text }) });
+    await api('/admin/reply', { method: 'POST', body: JSON.stringify({ leafId: pickedLeaf || '', animal: { emoji: a.emoji, name: a.name || '' }, text, gift: g || undefined }) });
     $('#text').value = ''; $('#tc').textContent = '0 / 2000'; pickedLeaf = null;
-    toast(`${a.emoji} 已經出發，她下次打開 App 就會收到`);
+    gift.type = 'none'; gift.name = ''; renderGift();
+    toast(g ? `${a.emoji} 帶著 ${giftLabel(g)} 出發了` : `${a.emoji} 已經出發，她下次打開 App 就會收到`);
     await refresh();
   } catch (e) { toast('送出失敗：' + e.message); }
   $('#send').disabled = false;

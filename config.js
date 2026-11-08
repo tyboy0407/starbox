@@ -59,6 +59,7 @@ window.APP_CONFIG = {
     intro: "躲進樹洞裡，把心情寫在葉子上放進去，\n球球會在第一時間收到",
     avatar: "🐑",                    // 躲在樹洞裡的小傢伙
     notify: true,                    // 放葉子時通知你（走 ntfy）
+    giftSource: "小動物",            // 你在後台（admin.html）派小動物帶禮物來時，兌換券上顯示的來源名稱
     // 心情選項：label 顯示文字、emoji 圖示、color 葉子顏色（通知也會帶上心情）
     moods: [
       { key: "happy",   label: "開心", emoji: "😊", color: "#8fd694" },

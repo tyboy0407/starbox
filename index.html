@@ -153,6 +153,11 @@ h2,h3,h4,p{margin:0}
 .letter-text{text-align:left;line-height:1.8;white-space:pre-wrap;word-break:break-word;margin-top:10px;max-height:240px;overflow:auto;-webkit-user-select:text;user-select:text}
 .reply{margin-top:8px;background:rgba(143,214,148,.1);border:1px solid rgba(143,214,148,.35);border-radius:12px;padding:8px 10px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
 .reply b{display:block;font-size:12px;color:var(--ok);margin-bottom:2px}
+.reply .r-gift{margin-top:4px;color:var(--gold);font-size:13px}
+.gift-card{display:flex;align-items:center;gap:12px;margin-top:12px;padding:12px 14px;border-radius:14px;text-align:left;
+  background:linear-gradient(135deg,rgba(255,217,138,.16),rgba(255,158,207,.12));border:1px solid rgba(255,217,138,.45)}
+.gift-card .g-ic{font-size:36px;line-height:1;filter:drop-shadow(0 0 10px rgba(255,217,138,.5));animation:giftWiggle 1.6s ease-in-out infinite}
+.gift-card .g-name{font-weight:700;color:var(--gold);line-height:1.4}
 /* 星圖全亮 */
 .cmap.alive .cstar.on .core{animation:starPulse 2.2s ease-in-out infinite}
 .cmap.alive .cstar.on .glow{animation:twinkle 1.6s ease-in-out infinite}
@@ -1428,25 +1433,33 @@ async function redeem(id) {
   const { i } = await modal({ icon: esc(it.emoji || '🎁'), title: `兌換「${esc(it.name)}」？`, html: `<p>會用掉 ${PE} ${it.cost} ${PN}</p><p class="muted small">兌換後剩下 ${S.points - it.cost}</p>`, buttons: [{ text: '再想想' }, { text: '兌換！', primary: true }] });
   if (i !== 1 || S.points < it.cost) return;
   // 有 dice／scratch 的品項：先決定結果再播動畫，兌換券上直接寫抽到的獎勵
-  const faces = Array.isArray(it.dice) ? it.dice.filter(Boolean).slice(0, 6) : [];
-  const pool = !faces.length && Array.isArray(it.scratch) ? it.scratch.filter(Boolean) : [];
-  const roll = faces.length ? { n: 1 + Math.floor(Math.random() * faces.length), get text() { return faces[this.n - 1]; } } : null;
-  const isAgain = x => /再刮/.test(String(x));
-  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-  let win = pool.length ? pick(pool) : null, again = false;
-  if (win && isAgain(win) && pool.some(x => !isAgain(x))) { again = true; win = pick(pool.filter(x => !isAgain(x))); }   // 刮到「再刮一次」：免費再刮一張
-  const name = roll ? `${it.name}：${roll.text}` : win ? `${it.name}：${win}` : it.name;
+  const { roll, faces, win, again, name } = drawPrize(it);
   S.redeemCount[id] = (S.redeemCount[id] || 0) + 1;
   S.coupons.unshift({ id: uid(), name, emoji: it.emoji || '🎁', source: '兌換', t: Date.now(), used: false });
   addStat('redeems');
   addPoints(-it.cost, it.emoji || '🎁', `兌換 ${name}`);
   render.shop();
   if (C.ntfy.notifyRedeem !== false) notify({ title: `🎁 ${C.herName} 兌換了禮物`, message: `${it.emoji || ''} ${name}${roll ? `（骰到 ${roll.n} 點）` : ''}（-${it.cost} ${PN}，還剩 ${S.points}）\n${fmtTime(Date.now())}`, tags: ['gift'] });
-  if (roll) await rollDice(it, roll, faces);
-  else if (win) { if (again) await scratchCard(it, '再刮一次', true); await scratchCard(it, win); }
+  await playPrize(it, { roll, faces, win, again });
   sparkle();
   checkBadges();
   toast('兌換成功！已放進「我的兌換券」');
+}
+// 決定一個商店品項的結果：dice 擲骰、scratch 抽獎品（刮到「再刮一次」就免費再刮一張）；兌換和收小動物禮物都用這個
+function drawPrize(it) {
+  const faces = Array.isArray(it.dice) ? it.dice.filter(Boolean).slice(0, 6) : [];
+  const pool = !faces.length && Array.isArray(it.scratch) ? it.scratch.filter(Boolean) : [];
+  const roll = faces.length ? { n: 1 + Math.floor(Math.random() * faces.length), get text() { return faces[this.n - 1]; } } : null;
+  const isAgain = x => /再刮/.test(String(x));
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  let win = pool.length ? pick(pool) : null, again = false;
+  if (win && isAgain(win) && pool.some(x => !isAgain(x))) { again = true; win = pick(pool.filter(x => !isAgain(x))); }
+  return { roll, faces, win, again, name: roll ? `${it.name}：${roll.text}` : win ? `${it.name}：${win}` : it.name };
+}
+// 播放品項的動畫（骰子／刮刮卡），沒有的話什麼都不做
+async function playPrize(it, d) {
+  if (d.roll) await rollDice(it, d.roll, d.faces);
+  else if (d.win) { if (d.again) await scratchCard(it, '再刮一次', true); await scratchCard(it, d.win); }
 }
 // 刮刮卡：canvas 塗層蓋住獎品，手指刮掉一半以上就自動全部揭曉
 function scratchCard(it, win, isAgainCard = false) {
@@ -1608,7 +1621,7 @@ const DEFAULT_ANIMALS = [
 // 小動物在場景裡的位置（SVG 座標，依 animals 的順序使用）
 const ANIMAL_SPOTS = [[114, 136], [150, 236], [92, 248], [228, 244], [254, 110], [288, 218], [46, 254], [182, 40], [330, 250], [180, 150]];
 function treeCfg() {
-  const t = Object.assign({ enabled: true, tabName: '樹洞', title: '綿綿樹洞', intro: '躲進樹洞裡，把心情寫在葉子上放進去', avatar: '🐑', notify: true }, C.tree || {});
+  const t = Object.assign({ enabled: true, tabName: '樹洞', title: '綿綿樹洞', intro: '躲進樹洞裡，把心情寫在葉子上放進去', avatar: '🐑', notify: true, giftSource: '小動物' }, C.tree || {});
   t.moods = (Array.isArray(t.moods) && t.moods.length ? t.moods : DEFAULT_MOODS).filter(m => m && m.key);
   t.animals = (Array.isArray(t.animals) && t.animals.length ? t.animals : DEFAULT_ANIMALS).filter(a => a && a.emoji).slice(0, ANIMAL_SPOTS.length).sort((a, b) => (+a.count || 0) - (+b.count || 0));
   return t;
@@ -1783,12 +1796,14 @@ async function syncBackend() {
       const r = await backendFetch('/delivered', { method: 'POST', body: JSON.stringify({ ids: acks.map(x => x.id) }) });
       if (r && r.ok) { acks.forEach(x => { x.acked = true; }); changed = true; }
     }
-    const got = await backendFetch('/replies');
+    const got = await backendFetch('/replies?v=2');   // v=2：這個版本看得懂附禮物的信
     if (got && Array.isArray(got.replies)) {
       if (!S.replies) S.replies = [];
       for (const r of got.replies) {
         if (S.replies.some(x => x.id === r.id)) continue;
-        S.replies.push({ id: String(r.id), leafId: String(r.leafId || ''), animal: { emoji: (r.animal && r.animal.emoji) || '🐿️', name: (r.animal && r.animal.name) || '' }, text: String(r.text || ''), t: +r.t || Date.now(), delivered: false, remote: true });
+        const item = { id: String(r.id), leafId: String(r.leafId || ''), animal: { emoji: (r.animal && r.animal.emoji) || '🐿️', name: (r.animal && r.animal.name) || '' }, text: String(r.text || ''), t: +r.t || Date.now(), delivered: false, remote: true };
+        const g = normGift(r.gift); if (g) item.gift = g;
+        S.replies.push(item);
         const leaf = (S.leaves || []).find(l => l.id === r.leafId); if (leaf) leaf.replied = true;
         changed = true; gotNew = true;
       }
@@ -1801,7 +1816,30 @@ async function syncBackend() {
 /* ================= 樹洞回信（男友在管理模式派小動物送信） ================= */
 const repliesOf = leafId => (S.replies || []).filter(r => r.leafId === leafId && r.delivered);
 function replyHtml(l) {
-  return repliesOf(l.id).map(r => `<div class="reply"><b>${animalHtml(r.animal, 'a-sm')} ${esc(r.animal.name || '小動物')}帶來${esc(C.fromName)}的回信 · ${fmtTime(r.t)}</b>${esc(r.text)}</div>`).join('');
+  return repliesOf(l.id).map(r => `<div class="reply"><b>${animalHtml(r.animal, 'a-sm')} ${esc(r.animal.name || '小動物')}帶來${esc(C.fromName)}的回信 · ${fmtTime(r.t)}</b>${esc(r.text)}${r.gift ? `<div class="r-gift">🎁 還帶來了 ${esc(giftLabel(r.gift))}</div>` : ''}</div>`).join('');
+}
+/* 小動物帶的禮物（男友在後台附在信上）：points 送星星、coupon 自訂兌換券、shop 商店品項（不扣星星，直接給一張券） */
+const normGift = g => g && typeof g === 'object' && ['points', 'coupon', 'shop'].includes(g.type)
+  ? { type: g.type, n: Math.max(0, Math.min(9999, Math.round(+g.n || 0))), id: String(g.id || '').slice(0, 40), name: String(g.name || '').slice(0, 40), emoji: String(g.emoji || '').slice(0, 16) } : null;
+function giftParts(g) {
+  if (g.type === 'points') return { emoji: PE, name: `${g.n} 顆${PN}` };
+  const it = g.type === 'shop' ? (C.shop || []).find(x => x.id === g.id) : null;
+  return { emoji: (it && it.emoji) || g.emoji || '🎁', name: (it && it.name) || g.name || '禮物', item: it || null };
+}
+const giftLabel = g => { const p = giftParts(g); return `${p.emoji} ${p.name}`; };
+// 收下禮物：先寫 state（星星或兌換券），回傳之後要播的動畫；關到一半再開也不會重複給
+function receiveGift(r) {
+  const g = r.gift, who = r.animal.name || '小動物', p = giftParts(g);
+  r.giftTaken = true;
+  if (g.type === 'points') {
+    const n = Math.max(1, g.n || 1);
+    addPoints(+n, r.animal.emoji || '🎁', `${who}帶來${C.fromName}送的 ${n} 顆${PN}`);
+    return { label: `${PE} ${n} 顆${PN}`, play: async () => { sparkle(innerWidth / 2, innerHeight * .4, 120); toast(`收到 ${n} 顆${PN}！`); } };
+  }
+  const d = p.item ? drawPrize(p.item) : { name: p.name };
+  S.coupons.unshift({ id: uid(), name: d.name, emoji: p.emoji, source: treeCfg().giftSource || '小動物', t: Date.now(), used: false });
+  log('🎁', `${who}帶來${C.fromName}送的 ${d.name}`); save();
+  return { label: `${p.emoji} ${d.name}`, play: async () => { if (p.item) await playPrize(p.item, d); sparkle(); toast('已放進「我的兌換券」'); } };
 }
 async function adminReply() {
   const leaves = (S.leaves || []);
@@ -1843,18 +1881,25 @@ async function deliverReplies() {
   const pending = (S.replies || []).filter(r => !r.delivered);
   if (!pending.length || !S.welcomed || game.key || $('.modal-bg:not(.out)')) return false;
   for (const r of pending) {
-    const leaf = (S.leaves || []).find(l => l.id === r.leafId);
+    const leaf = (S.leaves || []).find(l => l.id === r.leafId), g = r.gift && !r.giftTaken ? r.gift : null, who = r.animal.name || '小動物';
     sparkle(innerWidth / 2, innerHeight * .3, 80);
     await modal({
-      icon: `<span class="courier">${animalHtml(r.animal, 'a-lg')}</span> 💌`, title: `${esc(r.animal.name || '小動物')}叼著一封信來找你`, dismiss: false,
-      html: `${leaf ? `<p class="muted small" style="margin-bottom:6px">你寫的葉子：</p><div class="quote">${esc(moodOf(leaf.mood).emoji)} ${esc(leaf.text)}</div>` : ''}<p class="muted small" style="margin:10px 0 0">${esc(C.fromName)}的回信：</p><div class="letter-text">${nl2br(r.text)}</div>`,
-      buttons: [{ text: '收下 💌', primary: true }]
+      icon: `<span class="courier">${animalHtml(r.animal, 'a-lg')}</span> ${g ? '🎁' : '💌'}`, dismiss: false,
+      title: g ? `${esc(who)}帶著禮物來找你` : leaf ? `${esc(who)}叼著一封信來找你` : `${esc(who)}帶著信來找你`,
+      html: `${leaf ? `<p class="muted small" style="margin-bottom:6px">你寫的葉子：</p><div class="quote">${esc(moodOf(leaf.mood).emoji)} ${esc(leaf.text)}</div>` : ''}` +
+        `${r.text ? `<p class="muted small" style="margin:10px 0 0">${esc(C.fromName)}${leaf ? '的回信' : '想跟你說'}：</p><div class="letter-text">${nl2br(r.text)}</div>` : ''}` +
+        `${g ? `<div class="gift-card"><div class="g-ic">${esc(giftParts(g).emoji)}</div><div><div class="g-name">${esc(giftParts(g).name)}</div><div class="muted small">${esc(C.fromName)}託${esc(who)}帶來的禮物</div></div></div>` : ''}`,
+      buttons: [{ text: g ? '收下禮物 🎁' : '收下 💌', primary: true }]
     });
-    r.delivered = true; log('💌', `${r.animal.name || '小動物'}送來${C.fromName}的回信`); save();
+    r.delivered = true; log('💌', `${who}送來${C.fromName}的${leaf ? '回信' : '信'}`); save();
+    const got = g ? receiveGift(r) : null;   // 禮物先進帳再播動畫
     if (r.remote) {
-      if (C.ntfy.notifyWish !== false) notify({ title: `💌 ${C.herName} 收到${r.animal.name || '小動物'}的信了`, message: `${r.animal.emoji} 剛剛把你的回信送到了\n${fmtTime(Date.now())}`, tags: ['love_letter'], priority: 3 });
+      if (C.ntfy.notifyWish !== false) notify(got
+        ? { title: `🎁 ${C.herName} 收到${who}帶來的禮物了`, message: `${r.animal.emoji} ${got.label}\n${fmtTime(Date.now())}`, tags: ['gift'], priority: 3 }
+        : { title: `💌 ${C.herName} 收到${who}的信了`, message: `${r.animal.emoji} 剛剛把你的${leaf ? '回信' : '信'}送到了\n${fmtTime(Date.now())}`, tags: ['love_letter'], priority: 3 });
       syncBackend();   // 回報後台已送達
     }
+    if (got) { await got.play(); checkBadges(); }
   }
   if (render[current] && !game.key) render[current]();
   return true;
