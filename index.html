@@ -215,7 +215,7 @@ h2,h3,h4,p{margin:0}
 
 /* 撈星星 */
 .catch-wrap{margin:10px 0 16px}
-canvas.catch{width:100%;display:block;border-radius:20px;border:1px solid var(--line);touch-action:none;
+canvas.catch,canvas.gcv{width:100%;display:block;border-radius:20px;border:1px solid var(--line);touch-action:none;
   background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(180,140,255,.14))}
 .whack-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 6px 26px}
 .hole{position:relative;aspect-ratio:1}
@@ -887,6 +887,8 @@ const GAMES = {
   whack:  { name: '撈星星',   emoji: '⭐', desc: '星星從洞裡冒出來時快點它，小心雷雨雲', start: startWhack,  max: () => cfgOf('whack').maxPoints ?? 40 },
   memory: { name: '星座翻牌', emoji: '🃏', desc: '翻開卡片找出成對的圖案，步數越少越好', start: startMemory, max: () => cfgOf('memory').maxPoints ?? 40 },
   catch:  { name: '接流星',   emoji: '🌠', desc: '左右拖動月亮接住流星，小心烏雲', start: startCatch,  max: () => cfgOf('catch').maxPoints ?? 40 },
+  stack:  { name: '疊星塔',   emoji: '🗼', desc: '星磚左右滑動，點一下放下，疊得越高越好', start: startStack, max: () => cfgOf('stack').maxPoints ?? 40 },
+  jump:   { name: '月亮跳跳', emoji: '🐇', desc: '點一下跳過隕石、吃到星星，跑得越遠越好', start: startJump,  max: () => cfgOf('jump').maxPoints ?? 40 },
   quiz:   { name: '情侶問答', emoji: '💞', desc: '你有多了解我們？答對越多星星越多',     start: startQuiz,   max: () => { const q = cfgOf('quiz'); const n = Math.min(q.questionsPerRound ?? 5, (q.questions || []).length); return n * (q.pointsPerCorrect ?? 8) + (n ? (q.perfectBonus ?? 0) : 0); } },
 };
 const cfgOf = k => C.games[k] || {};
@@ -1120,6 +1122,243 @@ function startCatch(body, stat) {
         }
       }, 1000);
       spawn();
+      raf = requestAnimationFrame(frame);
+    };
+    tick();
+  };
+  game.cleanup = () => { running = false; if (iv) clearInterval(iv); if (raf) cancelAnimationFrame(raf); timers.forEach(clearTimeout); timers.clear(); };
+}
+
+/* ---------- 疊星塔（星磚左右滑，點一下放下，疊歪的部分掉下去） ---------- */
+function startStack(body, stat) {
+  const cfg = Object.assign({ pointsPerLayer: 2, perfectBonus: 1, maxPoints: 40, speed: 1, maxLayers: 60 }, cfgOf('stack'));
+  const timers = new Set();
+  const T = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); fn(); }, ms); timers.add(id); return id; };
+  body.innerHTML = `<p class="game-hint">星磚會左右滑動，點一下畫面把它放下！<br>疊歪的部分會掉下去，對準了有 ✨ 加分</p>
+    <div class="catch-wrap"><canvas class="gcv" id="stCv"></canvas></div>
+    <div class="center" id="stCtl"><button class="btn" id="stGo">準備好了，開始！</button></div>`;
+  const cv = $('#stCv', body), ctx = cv.getContext('2d');
+  const EMOJI = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  let W = 0, H = 0, raf = null, running = false, last = 0;
+  function size() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = cv.clientWidth || 320; H = Math.round(Math.min(innerHeight * .56, W * 1.35));
+    cv.style.height = H + 'px'; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  size();
+  const BH = 24, GROUND = H - 34, VISIBLE = Math.floor((H - 120) / BH);
+  const bg = Array.from({ length: 40 }, () => ({ x: Math.random() * W, y: Math.random() * H * 3, r: rand(.6, 1.6), a: rand(.3, .9) }));
+  const base = { x: (W - Math.min(W * .62, 220)) / 2, w: Math.min(W * .62, 220) };
+  const blocks = [base];              // blocks[0] 是地基，之後每一層一個 {x, w}
+  const mover = { x: 0, w: base.w, dir: 1, active: false };
+  const pieces = [], floats = [];     // 掉下去的碎片、加分文字
+  let n = 0, perfects = 0, combo = 0, cam = 0, camT = 0;
+  const color = i => `hsl(${(262 + i * 11) % 360} 72% ${i % 2 ? 66 : 60}%)`;
+  const speedNow = () => Math.min(430, 150 + n * 7) * (+cfg.speed || 1);
+  const setStat = () => { stat.textContent = `🗼${n} 層${perfects ? `  ✨${perfects}` : ''}`; };
+  setStat();
+  const yOf = i => GROUND - (i + 1) * BH + cam;   // 第 i 層的頂端 y（地基 i=0）
+  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function drawBlock(x, y, w, fill, glow) {
+    if (glow) { ctx.shadowColor = fill; ctx.shadowBlur = 14; }
+    ctx.fillStyle = fill; roundRect(x, y, w, BH - 3, 6); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,.28)'; roundRect(x + 3, y + 2, Math.max(0, w - 6), 5, 3); ctx.fill();
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    for (const s of bg) { const y = ((s.y + cam * .4) % (H * 3) + H * 3) % (H * 3) - H; if (y < -4 || y > H + 4) continue; ctx.globalAlpha = s.a; ctx.beginPath(); ctx.arc(s.x, y, s.r, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    // 地面
+    ctx.fillStyle = 'rgba(255,217,138,.18)'; ctx.fillRect(0, GROUND + cam, W, 3);
+    blocks.forEach((b, i) => { const y = yOf(i); if (y > -BH && y < H + BH) drawBlock(b.x, y, b.w, i ? color(i) : 'rgba(255,217,138,.9)', i === blocks.length - 1); });
+    for (const p of pieces) { ctx.globalAlpha = Math.max(0, p.a); drawBlock(p.x, p.y, p.w, p.c, false); }
+    ctx.globalAlpha = 1;
+    if (mover.active) drawBlock(mover.x, yOf(n + 1), mover.w, color(n + 1), true);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const f of floats) { ctx.globalAlpha = Math.max(0, f.life); ctx.font = `700 ${f.big ? 22 : 17}px ` + getComputedStyle(document.body).fontFamily; ctx.fillStyle = '#ffd98a'; ctx.fillText(f.txt, f.x, f.y); }
+    ctx.globalAlpha = 1;
+    if (!running && !n) { ctx.font = `54px ${EMOJI}`; ctx.fillStyle = '#fff'; ctx.fillText('🌙', W / 2, GROUND - 70); }
+  }
+  function frame(t) {
+    if (!running) return;
+    const dt = Math.min(.05, (t - (last || t)) / 1000); last = t;
+    if (mover.active) {
+      mover.x += mover.dir * speedNow() * dt;
+      if (mover.x <= -mover.w * .35) { mover.x = -mover.w * .35; mover.dir = 1; }
+      if (mover.x >= W - mover.w * .65) { mover.x = W - mover.w * .65; mover.dir = -1; }
+    }
+    cam += (camT - cam) * Math.min(1, dt * 6);
+    for (let i = pieces.length - 1; i >= 0; i--) { const p = pieces[i]; p.vy += 1400 * dt; p.y += p.vy * dt; p.a -= dt * 1.1; if (p.a <= 0 || p.y > H + 40) pieces.splice(i, 1); }
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.y -= 40 * dt; f.life -= dt * 1.2; if (f.life <= 0) floats.splice(i, 1); }
+    draw();
+    raf = requestAnimationFrame(frame);
+  }
+  function nextMover() {
+    const top = blocks[blocks.length - 1];
+    mover.w = top.w; mover.dir = n % 2 ? -1 : 1;
+    mover.x = mover.dir > 0 ? -top.w * .35 : W - top.w * .65;
+    mover.active = true;
+  }
+  function end(win) {
+    running = false; mover.active = false; game.playing = false;
+    maxStat('stackBest', n); setStat();
+    const best = (S.stats || {}).stackBest || n;
+    $('#stCtl', body).innerHTML = `<div class="big gold">${win ? '封頂了！' : '倒了！'}</div>`;
+    const pts = Math.min(cfg.maxPoints, n * cfg.pointsPerLayer + perfects * cfg.perfectBonus);
+    T(() => finishGame('stack', pts, `疊了 ${n} 層${perfects ? `，${perfects} 次完美` : ''}${best > n ? `（最高 ${best} 層）` : n > 0 ? '，刷新紀錄！' : ''}`, '🗼'), 900);
+  }
+  function drop() {
+    if (!running || !mover.active) return;
+    const top = blocks[blocks.length - 1];
+    let x = mover.x, w = mover.w;
+    const left = Math.max(x, top.x), right = Math.min(x + w, top.x + top.w), ow = right - left;
+    const y = yOf(n + 1);
+    if (ow <= 6) {   // 完全沒疊到：整塊掉下去
+      pieces.push({ x, w, y, vy: 0, a: 1, c: color(n + 1) });
+      mover.active = false; draw(); end(false); return;
+    }
+    if (Math.abs(x - top.x) <= 5) {   // 對得很準：不切，還補回一點寬度
+      x = top.x; w = Math.min(top.w + 2, base.w); combo++; perfects++;
+      floats.push({ x: x + w / 2, y: y - 8, txt: combo > 1 ? `✨ 完美 x${combo}` : '✨ 完美', life: 1, big: true });
+      sparkle(cv.getBoundingClientRect().left + x + w / 2, cv.getBoundingClientRect().top + y, 24);
+    } else {
+      combo = 0;
+      const cut = x < top.x ? { x, w: left - x } : { x: right, w: x + w - right };
+      pieces.push({ x: cut.x, w: cut.w, y, vy: 0, a: 1, c: color(n + 1) });
+      x = left; w = ow;
+    }
+    blocks.push({ x, w }); n++; setStat();
+    if (n > VISIBLE - 3) camT = (n - (VISIBLE - 3)) * BH;
+    if (w < 10 || n >= cfg.maxLayers) { mover.active = false; end(n >= cfg.maxLayers); return; }
+    nextMover();
+  }
+  cv.addEventListener('pointerdown', e => { e.preventDefault(); drop(); });
+  draw();
+  $('#stGo', body).onclick = () => {
+    $('#stCtl', body).innerHTML = '<div class="muted">點一下畫面放下星磚</div>';
+    game.playing = true; running = true; last = 0;
+    nextMover();
+    raf = requestAnimationFrame(frame);
+  };
+  game.cleanup = () => { running = false; if (raf) cancelAnimationFrame(raf); timers.forEach(clearTimeout); timers.clear(); };
+}
+
+/* ---------- 月亮跳跳（無盡跑酷：點一下跳過隕石、吃到星星） ---------- */
+function startJump(body, stat) {
+  const cfg = Object.assign({ seconds: 45, metersPerPoint: 10, starPoints: 2, maxPoints: 40, speed: 1 }, cfgOf('jump'));
+  const timers = new Set();
+  const T = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); fn(); }, ms); timers.add(id); return id; };
+  body.innerHTML = `<p class="game-hint">點一下畫面讓月亮跳起來，跳過隕石、吃到星星！<br>跑得越遠分數越高，撞到就結束</p>
+    <div class="catch-wrap"><canvas class="gcv" id="jCv"></canvas></div>
+    <div class="center" id="jCtl"><button class="btn" id="jGo">準備好了，開始！</button></div>`;
+  const cv = $('#jCv', body), ctx = cv.getContext('2d');
+  const EMOJI = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  let W = 0, H = 0, raf = null, iv = null, running = false, last = 0, left = cfg.seconds;
+  function size() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = cv.clientWidth || 320; H = Math.round(Math.min(innerHeight * .5, W * 1.1));
+    cv.style.height = H + 'px'; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  size();
+  const GROUND = H - 46, MX = W * .24, R = 17, G = 1500, JUMP = -600;
+  const far = Array.from({ length: 30 }, () => ({ x: Math.random() * W, y: Math.random() * (GROUND - 20), r: rand(.5, 1.4), a: rand(.3, .8), k: rand(.15, .4) }));
+  const moon = { y: GROUND - R, vy: 0, onGround: true, rot: 0, queued: 0 };
+  const rocks = [], stars = [], floats = [], dust = [];
+  let dist = 0, got = 0, nextX = W + 200, nextMark = 50, t = 0, hitFlash = 0;
+  const speedNow = () => Math.min(540, 240 + dist * .11) * (+cfg.speed || 1);
+  const meters = () => Math.floor(dist / 8);
+  const setStat = () => { stat.textContent = `⏱${left}  📏${meters()}m  ⭐${got}`; };
+  setStat();
+  function spawn() {
+    // 隕石：小的 28、大的 40，偶爾連兩顆；星星放在跳躍弧線的高度
+    const big = Math.random() < .35, w = big ? 40 : 28;
+    rocks.push({ x: nextX, w, h: w });
+    if (!big && Math.random() < .3) rocks.push({ x: nextX + w + 6, w: 28, h: 28 });
+    if (Math.random() < .55) stars.push({ x: nextX + rand(130, 200), y: GROUND - rand(95, 135) });
+    nextX += rand(300, 560) + speedNow() * .35;
+  }
+  function jump() {
+    if (!running) return;
+    if (moon.onGround) { moon.vy = JUMP; moon.onGround = false; moon.queued = 0; for (let i = 0; i < 6; i++) dust.push({ x: MX + rand(-10, 10), y: GROUND, vx: rand(-60, -20), vy: rand(-40, 0), life: .5 }); }
+    else moon.queued = .14;   // 落地前一點點按下去也算（手感比較好）
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    for (const s of far) { ctx.globalAlpha = s.a; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    // 地面
+    const grd = ctx.createLinearGradient(0, GROUND, 0, H); grd.addColorStop(0, 'rgba(180,140,255,.35)'); grd.addColorStop(1, 'rgba(180,140,255,0)');
+    ctx.fillStyle = grd; ctx.fillRect(0, GROUND, W, H - GROUND);
+    ctx.fillStyle = 'rgba(255,217,138,.5)'; ctx.fillRect(0, GROUND, W, 2);
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    for (const d of dust) { ctx.globalAlpha = Math.max(0, d.life * 1.6); ctx.beginPath(); ctx.arc(d.x, d.y, 2.5, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
+    for (const s of stars) { ctx.font = `22px ${EMOJI}`; ctx.fillText('⭐', s.x, s.y + Math.sin(t * 5 + s.x) * 3); }
+    for (const r of rocks) { ctx.font = `${r.w}px ${EMOJI}`; ctx.fillText('🪨', r.x + r.w / 2, GROUND - r.h / 2 + 3); }
+    ctx.save(); ctx.translate(MX, moon.y); ctx.rotate(moon.rot);
+    ctx.font = `${R * 2.4}px ${EMOJI}`; ctx.fillText('🌙', 0, 2); ctx.restore();
+    for (const f of floats) { ctx.globalAlpha = Math.max(0, f.life); ctx.font = '700 17px ' + getComputedStyle(document.body).fontFamily; ctx.fillStyle = '#ffd98a'; ctx.fillText(f.txt, f.x, f.y); }
+    ctx.globalAlpha = 1;
+    if (hitFlash > 0) { ctx.fillStyle = `rgba(255,138,166,${hitFlash * .35})`; ctx.fillRect(0, 0, W, H); }
+  }
+  function end(reason) {
+    running = false; game.playing = false;
+    if (iv) clearInterval(iv); iv = null;
+    const m = meters(); maxStat('jumpBest', m); setStat();
+    const best = (S.stats || {}).jumpBest || m;
+    $('#jCtl', body).innerHTML = `<div class="big gold">${reason === 'time' ? '時間到！' : '撞到了！'}</div>`;
+    const pts = Math.min(cfg.maxPoints, Math.floor(m / cfg.metersPerPoint) + got * cfg.starPoints);
+    T(() => finishGame('jump', pts, `跑了 ${m} 公尺，接到 ${got} 顆星星${best > m ? `（最遠 ${best} 公尺）` : m > 0 ? '，刷新紀錄！' : ''}`, '🌙'), 900);
+  }
+  function frame(ts) {
+    if (!running) { if (hitFlash > 0) { hitFlash -= .05; draw(); raf = requestAnimationFrame(frame); } return; }
+    const dt = Math.min(.05, (ts - (last || ts)) / 1000); last = ts; t += dt;
+    const v = speedNow(); dist += v * dt;
+    for (const s of far) { s.x -= v * s.k * dt; if (s.x < -4) { s.x = W + 4; s.y = Math.random() * (GROUND - 20); } }
+    // 月亮物理
+    moon.vy += G * dt; moon.y += moon.vy * dt;
+    if (moon.y >= GROUND - R) {
+      if (!moon.onGround) { for (let i = 0; i < 5; i++) dust.push({ x: MX + rand(-12, 12), y: GROUND, vx: rand(-80, -20), vy: rand(-50, -10), life: .45 }); }
+      moon.y = GROUND - R; moon.vy = 0; moon.onGround = true; moon.rot = 0;
+      if (moon.queued > 0) jump();
+    } else moon.rot += dt * 4;
+    if (moon.queued > 0) moon.queued -= dt;
+    // 世界往左捲（nextX 是下一組障礙的畫面 x，跟著一起捲）
+    nextX -= v * dt;
+    while (nextX < W + 100) spawn();
+    for (let i = rocks.length - 1; i >= 0; i--) {
+      const r = rocks[i]; r.x -= v * dt;
+      if (r.x + r.w < -10) { rocks.splice(i, 1); continue; }
+      const cx = Math.max(r.x + 5, Math.min(MX, r.x + r.w - 5)), cy = Math.max(GROUND - r.h + 6, Math.min(moon.y, GROUND));
+      if ((cx - MX) ** 2 + (cy - moon.y) ** 2 < (R - 3) ** 2) { hitFlash = 1; draw(); end('hit'); raf = requestAnimationFrame(frame); return; }
+    }
+    for (let i = stars.length - 1; i >= 0; i--) {
+      const s = stars[i]; s.x -= v * dt;
+      if (s.x < -20) { stars.splice(i, 1); continue; }
+      if ((s.x - MX) ** 2 + (s.y - moon.y) ** 2 < (R + 12) ** 2) { got++; setStat(); floats.push({ x: s.x, y: s.y - 10, txt: '+⭐', life: 1 }); stars.splice(i, 1); }
+    }
+    for (let i = dust.length - 1; i >= 0; i--) { const d = dust[i]; d.x += (d.vx - v * .3) * dt; d.y += d.vy * dt; d.life -= dt; if (d.life <= 0) dust.splice(i, 1); }
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.x -= v * dt * .5; f.y -= 40 * dt; f.life -= dt * 1.3; if (f.life <= 0) floats.splice(i, 1); }
+    if (meters() >= nextMark) { floats.push({ x: MX + 40, y: moon.y - 30, txt: `${nextMark}m 🎉`, life: 1 }); nextMark += 50; }
+    draw();
+    raf = requestAnimationFrame(frame);
+  }
+  cv.addEventListener('pointerdown', e => { e.preventDefault(); jump(); });
+  draw();
+  $('#jGo', body).onclick = () => {
+    const ctl = $('#jCtl', body);
+    let n = 3;
+    game.playing = true;
+    const tick = () => {
+      if (!game.playing) return;
+      if (n > 0) { ctl.innerHTML = `<div class="countdown">${n}</div>`; n--; T(tick, 700); return; }
+      ctl.innerHTML = '<div class="muted">點一下畫面跳起來！</div>';
+      running = true; last = 0; nextX = W + 120;
+      iv = setInterval(() => { left--; setStat(); if (left <= 0 && running) end('time'); }, 1000);
       raf = requestAnimationFrame(frame);
     };
     tick();

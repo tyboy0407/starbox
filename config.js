@@ -153,6 +153,7 @@ window.APP_CONFIG = {
     { id: "month",    name: "月亮常客",   emoji: "🌙", type: "streak",        goal: 30,   desc: "連續簽到 30 天" },
     { id: "catch30",  name: "流星獵人",   emoji: "🌠", type: "catchBest",     goal: 30,   desc: "接流星單局接到 30 分" },
     { id: "leaf10",   name: "樹洞知己",   emoji: "🍃", type: "leaves",        goal: 10,   desc: "在樹洞放了 10 片心情葉子" },
+    { id: "stack15",  name: "疊星達人",   emoji: "🗼", type: "stackBest",     goal: 15,   desc: "疊星塔單局疊到 15 層" },
   ],
 
   /* ---------- 偷星怪客 ----------
@@ -266,6 +267,26 @@ window.APP_CONFIG = {
       pointsPerScore: 1,           // 每 1 分換幾顆星星
       maxPoints: 40,               // 一局最多拿幾顆星星
       speed: 1,                    // 流星掉落速度倍率（1 = 正常，0.8 慢一點，1.2 快一點）
+    },
+
+    // 疊星塔（星磚左右滑動，點一下放下，疊歪的部分會掉下去；沒疊到就結束）
+    stack: {
+      enabled: true,
+      pointsPerLayer: 2,           // 每疊一層換幾顆星星
+      perfectBonus: 1,             // 對得很準（完美）額外加幾顆
+      maxPoints: 40,               // 一局最多拿幾顆星星
+      speed: 1,                    // 星磚滑動速度倍率（1 = 正常）
+      maxLayers: 60,               // 疊到這麼多層就封頂結束
+    },
+
+    // 月亮跳跳（點一下跳過隕石、吃星星的無盡跑酷）
+    jump: {
+      enabled: true,
+      seconds: 45,                 // 最多跑幾秒（撞到隕石會提早結束）
+      metersPerPoint: 10,          // 每跑幾公尺換 1 顆星星
+      starPoints: 2,               // 吃到一顆星星換幾顆星星
+      maxPoints: 40,               // 一局最多拿幾顆星星
+      speed: 1,                    // 跑速倍率（1 = 正常，0.85 慢一點）
     },
 
     // 情侶問答（目前停用：enabled 設 false 就不會出現在遊戲列表）

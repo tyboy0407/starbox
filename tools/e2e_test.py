@@ -119,6 +119,30 @@ async def run():
     await pg.wait_for_timeout(2500)
     await pg.screenshot(path=f'{OUT}/10c-catch-end.png')
     await clear_modals()
+    # stack：固定每 0.7 秒點一下畫面放星磚，直到倒了（最多 40 下）
+    await pg.click('[data-game=stack]'); await pg.wait_for_timeout(300)
+    await pg.click('#stGo'); await pg.wait_for_timeout(500)
+    box=await pg.eval_on_selector('#stCv','e=>{const r=e.getBoundingClientRect();return [r.left,r.top,r.width,r.height]}')
+    for i in range(40):
+      await pg.mouse.click(box[0]+box[2]/2,box[1]+box[3]/2); await pg.wait_for_timeout(700)
+      if i==4: await pg.screenshot(path=f'{OUT}/10d-stack.png')
+      if await pg.query_selector('.modal-bg:not(.out)'): break
+    await pg.wait_for_selector('.modal-bg:not(.out)',timeout=8000)
+    print('stack',(await pg.inner_text('.modal-bg:not(.out)')).replace(chr(10),' / ')[:80])
+    await pg.screenshot(path=f'{OUT}/10e-stack-end.png')
+    await clear_modals()
+    # jump：每 0.55 秒跳一下，撞到或時間到結束（最多等 60 秒）
+    await pg.click('[data-game=jump]'); await pg.wait_for_timeout(300)
+    await pg.click('#jGo'); await pg.wait_for_timeout(2300)
+    box=await pg.eval_on_selector('#jCv','e=>{const r=e.getBoundingClientRect();return [r.left,r.top,r.width,r.height]}')
+    for i in range(90):
+      await pg.mouse.click(box[0]+box[2]/2,box[1]+box[3]/2); await pg.wait_for_timeout(550)
+      if i==6: await pg.screenshot(path=f'{OUT}/10f-jump.png')
+      if await pg.query_selector('.modal-bg:not(.out)'): break
+    await pg.wait_for_selector('.modal-bg:not(.out)',timeout=60000)
+    print('jump',(await pg.inner_text('.modal-bg:not(.out)')).replace(chr(10),' / ')[:80])
+    await pg.screenshot(path=f'{OUT}/10g-jump-end.png')
+    await clear_modals()
     # quiz（config 停用時會跳過）
     if await pg.query_selector('[data-game=quiz]'):
       await pg.click('[data-game=quiz]'); await pg.wait_for_timeout(300)

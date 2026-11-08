@@ -8,7 +8,7 @@
 
 主要功能：
 1. **每日輪盤**：一天轉一次，獎賞由使用者在 `config.js` 自訂（可設權重）。抽到 `points` 型就直接加點，其他獎賞變成兌換券。
-2. **小遊戲賺點數**（點數叫「星星」）：撈星星（打地鼠）、星座翻牌（記憶配對）、接流星（canvas，拖動月亮接住掉落的流星）。情侶問答已停用但程式保留。每個遊戲每天有次數上限（目前 1 次）。
+2. **小遊戲賺點數**（點數叫「星星」）：撈星星（打地鼠）、星座翻牌（記憶配對）、接流星（canvas，拖動月亮接住掉落的流星）、疊星塔（canvas，星磚左右滑動點一下放下，疊歪的切掉，`stackBest` 記最高層數）、月亮跳跳（canvas 無盡跑酷，點一下跳過隕石吃星星，`jumpBest` 記最遠公尺，有 `seconds` 時間上限）。情侶問答已停用但程式保留。每個遊戲每天有次數上限（目前 1 次）。
 3. **兌換所**：用星星兌換禮物，兌換後變成兌換券，她按「使用」時會通知男友。品項可加 `dice`（6 個獎勵，兌換時擲骰子動畫 `rollDice`）或 `scratch`（獎品池，兌換時刮刮卡 `scratchCard`），結果在動畫前就決定並寫進兌換券名稱「品名：結果」。
 4. **許願瓶**：一天放一次，內容透過 **ntfy**（https://ntfy.sh）推播到男友手機。
 5. **綿綿樹洞**：第 6 個分頁。SVG 大樹＋樹洞，她選心情、寫文字後把葉子放進樹洞（不限次數），ntfy 通知男友；葉子累積到門檻會有 emoji 小動物出現在樹旁。
@@ -58,7 +58,7 @@ GitHub Pages 是直接發佈 repo 根目錄，所以 `index.html` 必須維持�
     outbox: [ntfy 訊息],                                     // 送失敗時暫存，之後自動補送
     thief: { 'YYYY-MM-DD': n },                            // 偷星怪客當天出現次數
     streak: { count, last: 'YYYY-MM-DD', best },           // 連續簽到
-    stats: { thiefWins, thiefLoses, quizCorrect, memoryPerfect, whackBest, catchBest, earned, redeems, birthday },  // 成就用累計
+    stats: { thiefWins, thiefLoses, quizCorrect, memoryPerfect, whackBest, catchBest, stackBest, jumpBest, earned, redeems, birthday },  // 成就用累計
     badges: { [badgeId]: unlockedAt },
     leaves: [{id, t, mood, text, sent, replied}],          // 樹洞葉子（sent 由 markSent 透過 leafId 標記）
     replies: [{id, leafId, animal:{emoji,name}, text, t, delivered}],  // 男友在管理模式寫的回信
